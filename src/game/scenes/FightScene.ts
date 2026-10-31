@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
-import { DummyInput, type DummyMode } from '../input/dummyInput';
+import { AiInput } from '../ai/aiInput';
+import type { Difficulty } from '../ai/difficulty';
+import { DummyInput } from '../input/dummyInput';
 import { IntentBuilder } from '../input/intent';
 import { keyboardControl } from '../input/keyboardMap';
 import { FixedStep } from '../loop';
@@ -11,19 +13,21 @@ import { Sfx } from '../render/sfx';
 import { type ArenaView, OPPONENT_COLOR, PLAYER_COLOR, drawFighter } from '../render/stickFighter';
 import { ARENA_W, NPC_TELEGRAPH } from '../sim/constants';
 import { createMatch, stepMatch } from '../sim/match';
-import type { Match } from '../sim/types';
+import type { Match, TickInput } from '../sim/types';
 
 const W = 1280;
 const H = 720;
 const GAME_KEYS = new Set(['KeyA', 'KeyD', 'KeyS', 'KeyW', 'KeyJ', 'KeyK', 'KeyU', 'KeyI', 'Space', 'KeyQ', 'KeyE']);
-const DUMMY_KEYS: Record<string, DummyMode> = { Digit1: 'idle', Digit2: 'jab', Digit3: 'block' };
-const DUMMY_LABEL: Record<DummyMode, string> = { idle: 'đứng yên', jab: 'ra jab có báo trước', block: 'chỉ block' };
+type Opponent = Difficulty | 'dummy';
+const OPPONENT_KEYS: Record<string, Opponent> = { Digit1: 'easy', Digit2: 'normal', Digit3: 'hard', Digit0: 'dummy' };
+const OPPONENT_LABEL: Record<Opponent, string> = { easy: 'AI Easy', normal: 'AI Normal', hard: 'AI Hard', dummy: 'bao cát (jab có báo trước)' };
 
 /** Keyboard fight against the sparring dummy: fixed 60 Hz sim, neon stick fighters, HUD, effects and sound. */
 export class FightScene extends Phaser.Scene {
   private match!: Match;
   private intent = new IntentBuilder();
-  private dummy = new DummyInput('jab');
+  private opponent: Opponent = 'normal';
+  private opponentInput: { next: (m: Match) => TickInput } = this.makeOpponent();
   private step = new FixedStep();
   private down = new Set<string>();
   private pressed = new Set<string>();
@@ -56,10 +60,10 @@ export class FightScene extends Phaser.Scene {
       this.down.add(e.code);
       this.pressed.add(e.code);
       if (e.code === 'KeyR') this.restart();
-      const mode = DUMMY_KEYS[e.code];
-      if (mode) {
-        this.dummy = new DummyInput(mode);
-        this.updateInfo();
+      const opponent = OPPONENT_KEYS[e.code];
+      if (opponent) {
+        this.opponent = opponent;
+        this.restart();
       }
     };
     const onUp = (e: KeyboardEvent) => this.down.delete(e.code);
@@ -77,13 +81,23 @@ export class FightScene extends Phaser.Scene {
   private restart(): void {
     this.match = createMatch({ extraStartup: [0, NPC_TELEGRAPH] });
     this.intent = new IntentBuilder();
+    this.opponentInput = this.makeOpponent();
     this.updateInfo();
+  }
+
+  /** A fresh opponent per match, so no AI statistics or plans carry over. */
+  private makeOpponent(): { next: (m: Match) => TickInput } {
+    if (this.opponent === 'dummy') {
+      const dummy = new DummyInput('jab');
+      return { next: (m) => dummy.next(m.frame) };
+    }
+    return new AiInput(this.opponent, 1, Date.now() >>> 0);
   }
 
   private updateInfo(): void {
     this.info.setText(
       `A/D đi · W nhảy · S cúi · J/K đấm · U/I đá · Space block · Q/E né · J+K nhanh = special · ` +
-        `Bao cát [1/2/3]: ${DUMMY_LABEL[this.dummy.mode]} · R đấu lại`,
+        `Đối thủ [1/2/3 AI · 0 bao cát]: ${OPPONENT_LABEL[this.opponent]} · R đấu lại`,
     );
   }
 
@@ -104,7 +118,7 @@ export class FightScene extends Phaser.Scene {
     this.pressed.clear();
     const ticks = this.step.advance(delta);
     for (let i = 0; i < ticks; i++) {
-      stepMatch(this.match, [this.intent.next(), this.dummy.next(this.match.frame)]);
+      stepMatch(this.match, [this.intent.next(), this.opponentInput.next(this.match)]);
       for (const e of this.match.events) {
         this.effects.handle(e, this.match);
         this.sfx.play(e);

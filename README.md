@@ -2,7 +2,7 @@
 
 Game đối kháng võ thuật 2D điều khiển bằng chuyển động toàn thân qua webcam (MediaPipe Pose). Chạy hoàn toàn trên trình duyệt.
 
-> Trạng thái: **Phase 2 – Combat Core**: trận đấu chơi bằng bàn phím với bao cát. Phase 1 (Motion Lab) đã xong. Thiết kế đầy đủ: [`docs/superpowers/specs/2026-10-31-body-fighter-design.md`](docs/superpowers/specs/2026-10-31-body-fighter-design.md).
+> Trạng thái: **Phase 4 – NPC AI**: đấu với AI 3 cấp độ bằng bàn phím. Đã xong: Phase 1 (Motion Lab), Phase 2 (Combat Core). Thiết kế đầy đủ: [`docs/superpowers/specs/2026-10-31-body-fighter-design.md`](docs/superpowers/specs/2026-10-31-body-fighter-design.md).
 
 ## Chạy
 
@@ -25,7 +25,7 @@ Các lệnh khác:
 
 ## Chơi thử bằng bàn phím
 
-Mở `http://localhost:5173/`. Bạn là võ sĩ màu cyan, đối thủ màu hồng là bao cát.
+Mở `http://localhost:5173/`. Bạn là võ sĩ màu cyan, đối thủ màu hồng là AI (mặc định Normal). Đòn của đối thủ luôn có báo trước: tay hoặc chân nhấp nháy vàng khoảng 0.4 giây.
 
 | Phím | Hành động |
 |---|---|
@@ -37,10 +37,13 @@ Mở `http://localhost:5173/`. Bạn là võ sĩ màu cyan, đối thủ màu h�
 | Space (giữ) | Block (giảm 80% sát thương, tốn stamina) |
 | Q / E | Né (miễn đòn trong 1/3 giây) |
 | J rồi K thật nhanh khi thanh tím đầy | Special: Power Blast |
-| 1 / 2 / 3 | Bao cát: đứng yên / ra jab có báo trước (tay nhấp nháy vàng) / chỉ block |
+| 1 / 2 / 3 | Đấu với AI Easy / Normal / Hard (đấu lại từ đầu) |
+| 0 | Bao cát ra jab đều đặn để luyện block/né |
 | R | Đấu lại |
 
 Combo: J→K (Double Jab), J→K→I (Triple Attack), K→U→I (Power Combo), Block→Né→K (Counter).
+
+AI: Easy nghỉ nhiều, hiếm khi phòng thủ. Normal biết combo 2 đòn, thủ thế khi bạn áp sát và đôi khi phạt đòn hụt. Hard phản xạ nhanh (250 ms), combo 3 đòn, phạt các đòn chậm như cú đá hụt. Normal và Hard còn **thích nghi theo thói quen của bạn** trong 20 giây gần nhất: hay đấm thì AI thủ nhiều hơn, hay đá thì nó né và giữ khoảng cách, hay block thì nó đánh mạnh để làm cạn stamina của bạn.
 
 ## Đặt camera và đứng
 
