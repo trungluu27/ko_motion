@@ -1,5 +1,6 @@
 export type MotionConfig = {
-  oneEuro: { minCutoff: number; beta: number; dCutoff: number };
+  /** beta applies to world coordinates (m); imageBeta to normalized image coordinates, which move ~4x less */
+  oneEuro: { minCutoff: number; beta: number; imageBeta: number; dCutoff: number };
   tracking: { visibilityMin: number; edgeMargin: number; resumeDebounceMs: number; gapResetMs: number };
   calibration: { frames: number; hipStableMax: number; recalibrateRatio: number };
   punch: { extOn: number; velOn: number; elbowMinDeg: number; extOff: number; refractoryMs: number };
@@ -13,7 +14,7 @@ export type MotionConfig = {
 };
 
 export const DEFAULT_CONFIG: MotionConfig = {
-  oneEuro: { minCutoff: 1.0, beta: 1.0, dCutoff: 1.0 },
+  oneEuro: { minCutoff: 1.0, beta: 3, imageBeta: 15, dCutoff: 1.0 },
   tracking: { visibilityMin: 0.5, edgeMargin: 0.02, resumeDebounceMs: 300, gapResetMs: 250 },
   calibration: { frames: 45, hipStableMax: 0.03, recalibrateRatio: 0.25 },
   punch: { extOn: 0.8, velOn: 2.5, elbowMinDeg: 100, extOff: 0.55, refractoryMs: 180 },

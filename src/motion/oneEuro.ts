@@ -48,7 +48,8 @@ export class PoseSmoother {
   private f(key: string): OneEuroFilter {
     let f = this.filters.get(key);
     if (!f) {
-      f = new OneEuroFilter(this.cfg.minCutoff, this.cfg.beta, this.cfg.dCutoff);
+      const beta = key.startsWith('i') ? this.cfg.imageBeta : this.cfg.beta;
+      f = new OneEuroFilter(this.cfg.minCutoff, beta, this.cfg.dCutoff);
       this.filters.set(key, f);
     }
     return f;
