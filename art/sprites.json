@@ -1,0 +1,23 @@
+{
+  "fighters": ["fighter_a", "fighter_b"],
+  "height_px": 384,
+  "clips": {
+    "idle": { "file": "idle.fbx", "kind": "loop", "start": 1, "end": 121 },
+    "walk_fwd": { "file": "walk_fwd.fbx", "kind": "loop", "start": 1, "end": 72 },
+    "walk_back": { "file": "walk_back.fbx", "kind": "loop", "start": 1, "end": 89 },
+    "jump": { "file": "jump.fbx", "kind": "once", "start": 10, "end": 100 },
+    "crouch": { "file": "crouch.fbx", "kind": "hold", "start": 1, "end": 30 },
+    "punch_l": { "file": "punch_l.fbx", "kind": "attack", "start": 1, "impact": 20, "end": 50, "frames": [4, 3, 10] },
+    "punch_r": { "file": "punch_r.fbx", "kind": "attack", "start": 1, "impact": 18, "end": 45, "frames": [6, 3, 14] },
+    "kick_l": { "file": "kick_l.fbx", "kind": "attack", "start": 1, "impact": 40, "end": 100, "frames": [8, 4, 18] },
+    "kick_r": { "file": "kick_r.fbx", "kind": "attack", "start": 1, "impact": 50, "end": 120, "frames": [10, 4, 20] },
+    "special": { "file": "special.fbx", "kind": "attack", "start": 1, "impact": 120, "end": 250, "frames": [12, 6, 30] },
+    "block": { "file": "block.fbx", "kind": "hold", "start": 1, "end": 30 },
+    "dodge": { "file": "dodge.fbx", "kind": "once", "start": 1, "end": 60 },
+    "hit_high": { "file": "hit_high.fbx", "kind": "once", "start": 1, "end": 60 },
+    "hit_mid": { "file": "hit_mid.fbx", "kind": "once", "start": 1, "end": 60 },
+    "knockdown": { "file": "knockdown.fbx", "kind": "once", "start": 1, "end": 129 },
+    "victory": { "file": "victory.fbx", "kind": "loop", "start": 1, "end": 181 },
+    "defeat": { "file": "defeat.fbx", "kind": "once", "start": 1, "end": 181 }
+  }
+}
