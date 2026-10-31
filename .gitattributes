@@ -2,3 +2,4 @@
 *.task binary
 *.wasm binary
 *.gz binary
+*.webp binary
