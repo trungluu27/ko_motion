@@ -9,3 +9,4 @@ public/models/*.task
 .superpowers/
 public/mediapipe/
 out/
+.pytest_cache/
