@@ -65,6 +65,12 @@ export class AiBrain {
   next(ctx: BrainContext): TickInput {
     const { self, seen, frame } = ctx;
     if (!seen) return { ...NO_INPUT };
+    // a combo interrupted by a hit or a block is abandoned rather than resumed out of range
+    if ((self.action.kind === 'hitstun' || self.action.kind === 'blockstun') && this.plan.length > 0) {
+      this.plan = [];
+      this.st = 'idle';
+      this.holdUntil = frame;
+    }
     if (frame >= this.nextDecision || this.planDone(ctx)) {
       this.nextDecision = frame + DECISION_FRAMES;
       this.decide(ctx);
@@ -128,7 +134,7 @@ export class AiBrain {
     if ((this.st === 'idle' || this.st === 'block') && frame < this.holdUntil) return;
     if (this.st === 'retreat' && self.stamina < RECOVERED_STAMINA && !this.pinnedWhenRetreating(ctx)) return;
 
-    if (self.special >= MAX_SPECIAL && d <= MOVES.special.range && isFree(self)) {
+    if (self.special >= MAX_SPECIAL && d <= MOVES.special.range && isFree(self) && self.stamina >= MOVES.punch_l.stamina) {
       this.st = 'special';
       this.specialStep = 0;
       return;
@@ -196,6 +202,12 @@ export class AiBrain {
       case 'attack': {
         if (!isFree(self) || this.plan.length === 0) return { ...NO_INPUT };
         const move = this.plan[0];
+        if (MOVES[move].range < this.distance(ctx)) {
+          this.plan = [];
+          this.st = 'idle';
+          this.holdUntil = ctx.frame;
+          return { ...NO_INPUT };
+        }
         if (self.stamina < MOVES[move].stamina) {
           this.plan = [];
           this.st = 'retreat';

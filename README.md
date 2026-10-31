@@ -43,7 +43,7 @@ Mở `http://localhost:5173/`. Bạn là võ sĩ màu cyan, đối thủ màu h�
 
 Combo: J→K (Double Jab), J→K→I (Triple Attack), K→U→I (Power Combo), Block→Né→K (Counter).
 
-AI: Easy nghỉ nhiều, hiếm khi phòng thủ. Normal biết combo 2 đòn, thủ thế khi bạn áp sát và đôi khi phạt đòn hụt. Hard phản xạ nhanh (250 ms), combo 3 đòn, phạt các đòn chậm như cú đá hụt. Normal và Hard còn **thích nghi theo thói quen của bạn** trong 20 giây gần nhất: hay đấm thì AI thủ nhiều hơn, hay đá thì nó né và giữ khoảng cách, hay block thì nó đánh mạnh để làm cạn stamina của bạn.
+AI: Easy nghỉ nhiều, hiếm khi phòng thủ. Normal biết combo 2 đòn, thủ thế khi bạn áp sát và đôi khi phạt đòn hụt. Hard phản xạ nhanh (250 ms), combo 3 đòn, và hay đánh trả ngay sau khi bạn ra đòn hụt. Vì mọi đòn của AI đều có báo trước 0,4 giây, bạn luôn có cơ hội đỡ hoặc né. Normal và Hard còn **thích nghi theo thói quen của bạn** trong 20 giây gần nhất: hay đấm thì AI thủ nhiều hơn, hay đá thì nó né và giữ khoảng cách, hay block thì nó đánh mạnh để làm cạn stamina của bạn.
 
 ## Đặt camera và đứng
 
