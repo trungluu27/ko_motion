@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageFilter
+from PIL import Image, ImageChops, ImageEnhance, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "art" / "render" / "stage"
@@ -27,6 +27,18 @@ def bloom(im: Image.Image, threshold: int = 170, radius: int = 18, strength: flo
     return out
 
 
+def recede(im: Image.Image, brightness: float, blur: float) -> Image.Image:
+    """Darken and soften a background layer so the fighters read in front of it (depth of field)."""
+    alpha = im.getchannel("A") if im.mode == "RGBA" else None
+    out = ImageEnhance.Brightness(im.convert("RGB")).enhance(brightness)
+    out = ImageEnhance.Color(out).enhance(0.85)
+    if blur:
+        out = out.filter(ImageFilter.GaussianBlur(blur))
+    if alpha is not None:
+        out.putalpha(alpha.filter(ImageFilter.GaussianBlur(blur)) if blur else alpha)
+    return out
+
+
 def floor_layer(full: Image.Image, curb_row: int, fade: int = 8) -> Image.Image:
     """Everything below the curb from the full render (keeps the reflections), transparent above."""
     out = full.convert("RGBA")
@@ -42,9 +54,9 @@ def main() -> None:
     info = json.loads((SRC / "stage.json").read_text(encoding="utf8"))
     OUT.mkdir(parents=True, exist_ok=True)
     full = Image.open(SRC / "full.png")
-    bloom(Image.open(SRC / "far.png")).convert("RGB").save(OUT / "far.jpg", quality=86)
-    bloom(Image.open(SRC / "mid.png").convert("RGBA")).save(OUT / "mid.webp", quality=88)
-    bloom(floor_layer(full, info["curbRow"])).save(OUT / "floor.webp", quality=88)
+    recede(bloom(Image.open(SRC / "far.png")), 0.45, 2.0).convert("RGB").save(OUT / "far.jpg", quality=86)
+    recede(bloom(Image.open(SRC / "mid.png").convert("RGBA")), 0.6, 1.2).save(OUT / "mid.webp", quality=88)
+    recede(bloom(floor_layer(full, info["curbRow"])), 0.8, 0).save(OUT / "floor.webp", quality=88)
     bloom(full.convert("RGB")).save(SRC / "preview.jpg", quality=86)
     (OUT / "stage.json").write_text(json.dumps(info), encoding="utf8")
     size = sum(p.stat().st_size for p in OUT.iterdir()) / 1e6

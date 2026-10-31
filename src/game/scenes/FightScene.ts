@@ -16,6 +16,8 @@ import { poseFor } from '../render/pose';
 import { Sfx } from '../render/sfx';
 import { OPPONENT_COLOR, PLAYER_COLOR, drawFighter } from '../render/stickFighter';
 import { WebcamLayer } from '../render/webcamLayer';
+import { FighterSprite, type SpriteMeta } from '../render/fighterSprite';
+import { Stage, type StageInfo } from '../render/stage';
 import { NPC_TELEGRAPH } from '../sim/constants';
 import { createMatch, stepMatch } from '../sim/match';
 import type { Match, TickInput } from '../sim/types';
@@ -25,6 +27,7 @@ import { ActionLabelTimer } from '../../view/webcamPanel';
 
 const GAME_KEYS = new Set(['KeyP', 'KeyA', 'KeyD', 'KeyS', 'KeyW', 'KeyJ', 'KeyK', 'KeyU', 'KeyI', 'Space', 'KeyQ', 'KeyE', 'F3']);
 type Opponent = Difficulty | 'dummy';
+const FIGHTER_KEYS = ['fighter_a', 'fighter_b'] as const;
 const OPPONENT_KEYS: Record<string, Opponent> = { Digit1: 'easy', Digit2: 'normal', Digit3: 'hard', Digit0: 'dummy' };
 const OPPONENT_LABEL: Record<Opponent, string> = { easy: 'AI Easy', normal: 'AI Normal', hard: 'AI Hard', dummy: 'bao cát' };
 const VIEW_LABEL: Record<ViewMode, string> = { split: 'chia đôi', pip: 'webcam góc', game: 'chỉ game' };
@@ -49,6 +52,11 @@ export class FightScene extends Phaser.Scene {
   private layout: Layout = layoutFor('game');
   private view: ArenaView = arenaView(this.layout.arena);
   private stage!: Phaser.GameObjects.Graphics;
+  private backdrop: Stage | null = null;
+  private sprites: [FighterSprite, FighterSprite] | null = null;
+  private failedAssets = new Set<string>();
+  private simTicks = 0;
+  private sinceResult = 0;
   private fighters!: Phaser.GameObjects.Graphics;
   private effects!: Effects;
   private hud!: Hud;
@@ -67,6 +75,36 @@ export class FightScene extends Phaser.Scene {
     super('fight');
   }
 
+  /** Fighter atlases and stage layers; any failure falls back to the stick fighters / plain stage. */
+  preload(): void {
+    const base = import.meta.env.BASE_URL;
+    this.failedAssets = new Set();
+    this.load.on('loaderror', (file: Phaser.Loader.File) => this.failedAssets.add(file.key));
+    for (const f of FIGHTER_KEYS) {
+      if (!this.textures.exists(f)) this.load.multiatlas(f, `${base}sprites/${f}.json`, `${base}sprites/`);
+      if (!this.cache.json.exists(`${f}_meta`)) this.load.json(`${f}_meta`, `${base}sprites/${f}.json`);
+    }
+    if (!this.textures.exists('neon_far')) {
+      this.load.image('neon_far', `${base}stages/neon_street/far.jpg`);
+      this.load.image('neon_mid', `${base}stages/neon_street/mid.webp`);
+      this.load.image('neon_floor', `${base}stages/neon_street/floor.webp`);
+      this.load.json('neon_stage', `${base}stages/neon_street/stage.json`);
+    }
+  }
+
+  private createArt(): void {
+    const ok = (k: string) => !this.failedAssets.has(k);
+    const metas = FIGHTER_KEYS.map((f) => (this.cache.json.get(`${f}_meta`) as { meta?: SpriteMeta } | undefined)?.meta);
+    const spritesOk = FIGHTER_KEYS.every((f, i) => ok(f) && this.textures.exists(f) && metas[i]?.clips);
+    this.sprites = spritesOk
+      ? [new FighterSprite(this, FIGHTER_KEYS[0], metas[0]!, 0), new FighterSprite(this, FIGHTER_KEYS[1], metas[1]!, 1)]
+      : null;
+    if (!spritesOk) console.warn('[FightScene] fighter sprites unavailable, using stick fighters');
+    const stageInfo = this.cache.json.get('neon_stage') as StageInfo | undefined;
+    const stageOk = ['neon_far', 'neon_mid', 'neon_floor'].every((k) => ok(k) && this.textures.exists(k)) && stageInfo;
+    this.backdrop = stageOk ? new Stage(this, 'neon', stageInfo) : null;
+  }
+
   init(data: FightData): void {
     this.control = data.control ?? this.control;
     this.viewMode = data.view ?? this.viewMode;
@@ -80,6 +118,7 @@ export class FightScene extends Phaser.Scene {
     this.step = new FixedStep();
     this.pause = new TrackingPause();
     this.stage = this.add.graphics().setDepth(0);
+    this.createArt();
     this.fighters = this.add.graphics().setDepth(10);
     this.effects = new Effects(this, this.view);
     this.hud = new Hud(this);
@@ -205,6 +244,7 @@ export class FightScene extends Phaser.Scene {
 
   private restart(): void {
     this.match = createMatch({ extraStartup: [0, NPC_TELEGRAPH] });
+    this.sinceResult = 0;
     this.intent = new IntentBuilder();
     this.motion.clear();
     this.pause.reset();
@@ -236,6 +276,7 @@ export class FightScene extends Phaser.Scene {
     const { arena } = this.layout;
     const ground = this.view.groundY;
     g.clear();
+    if (this.backdrop) return;
     g.fillGradientStyle(0x020617, 0x020617, 0x1e1b4b, 0x1e1b4b, 1);
     g.fillRect(arena.x, 0, arena.w, CANVAS_H);
     g.lineStyle(1, 0x312e81, 0.5);
@@ -266,6 +307,9 @@ export class FightScene extends Phaser.Scene {
         const keys = this.intent.next();
         const player = body ? mergeInputs(this.motion.next(now), keys) : keys;
         stepMatch(this.match, [player, this.opponentInput.next(this.match)]);
+        this.simTicks++;
+        if (this.match.result) this.sinceResult++;
+        this.sprites?.forEach((sp, j) => sp.tick(this.match.fighters[j], this.match.events));
         for (const e of this.match.events) {
           this.effects.handle(e, this.match);
           this.sfx.play(e);
@@ -274,9 +318,16 @@ export class FightScene extends Phaser.Scene {
     }
 
     this.fighters.clear();
-    this.match.fighters.forEach((f, i) => {
-      drawFighter(this.fighters, f, poseFor(f), i === 0 ? PLAYER_COLOR : OPPONENT_COLOR, this.view);
-    });
+    const [fa, fb] = this.match.fighters;
+    this.backdrop?.draw(this.view, (fa.x + fb.x) / 2);
+    if (this.sprites) {
+      this.sprites[0].draw(fa, fb, this.view, this.simTicks, this.match.result, this.sinceResult);
+      this.sprites[1].draw(fb, fa, this.view, this.simTicks, this.match.result, this.sinceResult);
+    } else {
+      this.match.fighters.forEach((f, i) => {
+        drawFighter(this.fighters, f, poseFor(f), i === 0 ? PLAYER_COLOR : OPPONENT_COLOR, this.view);
+      });
+    }
     this.hud.draw(hudModel(this.match), this.layout.arena);
     if (session) this.webcam.draw(this.layout.webcam, session, this.labels.current(now));
     else this.webcam.draw(null, MotionSession.get(), null);
