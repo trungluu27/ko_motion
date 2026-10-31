@@ -29,6 +29,7 @@
   "homepage": "https://github.com/trungluu27/ko_motion#readme",
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "happy-dom": "^21.0.4",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",

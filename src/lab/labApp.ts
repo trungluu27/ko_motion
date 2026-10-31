@@ -7,6 +7,7 @@ import { type PoseModel, PoseTracker } from '../motion/poseTracker';
 import { ActionLabelTimer, drawWebcamPanel } from '../view/webcamPanel';
 import { type DebugData, type FeatureSample, type LogEntry, drawDebugPanel, pruneHistory, sampleOf } from './debugPanel';
 import { FpsCounter, LatencyStats } from './latencyStats';
+import { renderMessage, setCameraOptions } from './message';
 
 export const LAB_W = 1280;
 export const LAB_H = 720;
@@ -95,15 +96,8 @@ export class LabApp {
     await this.loadTracker();
   }
 
-  showMessage(html: string | null, retry?: () => void): void {
-    this.message.hidden = html === null;
-    this.message.innerHTML = html ?? '';
-    if (retry) {
-      const b = document.createElement('button');
-      b.textContent = 'Thử lại';
-      b.onclick = retry;
-      this.message.append(' ', b);
-    }
+  showMessage(text: string | null, retry?: () => void): void {
+    renderMessage(this.message, text, retry);
   }
 
   private async startCamera(deviceId?: string): Promise<void> {
@@ -115,9 +109,7 @@ export class LabApp {
       this.showMessage(null);
       const cams = await listCameras();
       const current = (this.video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().deviceId;
-      this.cameraSelect.innerHTML = cams
-        .map((c, i) => `<option value="${c.deviceId}">${c.label || `Camera ${i + 1}`}</option>`)
-        .join('');
+      setCameraOptions(this.cameraSelect, cams);
       if (current) this.cameraSelect.value = current;
       if (this.tracker) this.tracker.start(this.video, this.onPose);
     } catch (e) {
