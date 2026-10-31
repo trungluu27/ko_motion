@@ -4,6 +4,7 @@
 import type { Landmark, PoseFrame } from '../../src/shared/types';
 import { LANDMARK_COUNT, LM } from '../../src/motion/landmarks';
 import { type Vec3, dist, sub } from '../../src/shared/math';
+import { type Calibration, measureBody } from '../../src/motion/calibration';
 
 export type ArmPose = {
   /** |wrist - shoulder| / (upper arm + forearm), 0..1 */
@@ -194,4 +195,9 @@ export function concatSequences(...seqs: PoseFrame[][]): PoseFrame[] {
     out.push({ ...f, frameId: out.length });
   }
   return out;
+}
+
+/** Calibration measured from the default synthetic stance (same result a Calibrator converges to). */
+export function defaultCalibration(p: Partial<SynthParams> = {}): Calibration {
+  return measureBody(synthFrame(p, 0));
 }
