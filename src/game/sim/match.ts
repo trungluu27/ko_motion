@@ -1,5 +1,6 @@
 import {
-  ARENA_W, EDGE, HITSTOP, HITSTUN, JUMP_FRAMES, KNOCKBACK, MATCH_FRAMES, MAX_HP, MAX_SPECIAL, MAX_STAMINA, MIN_GAP,
+  ARENA_W, BLOCK_REDUCTION, BLOCK_STAMINA, BLOCKSTUN, DODGE_INVULN, DODGE_RECOVERY, EDGE, GUARD_BREAK_STUN,
+  HITSTOP, HITSTUN, JUMP_AIR_END, JUMP_AIR_START, JUMP_FRAMES, KNOCKBACK, MATCH_FRAMES, MAX_HP, MAX_SPECIAL, MAX_STAMINA, MIN_GAP,
   REGEN_DELAY, REGEN_PER_FRAME, SPECIAL_ON_HIT, SPECIAL_ON_HURT, START_X, WALK_SPEED,
 } from './constants';
 import { MOVES } from './moves';
@@ -25,7 +26,8 @@ export function createMatch(opts: { extraStartup?: [number, number] } = {}): Mat
 }
 
 /** True when the fighter can take a new action this tick. */
-const isFree = (f: Fighter) => f.action.kind === 'idle' || f.action.kind === 'walk' || f.action.kind === 'crouch';
+const isFree = (f: Fighter) =>
+  f.action.kind === 'idle' || f.action.kind === 'walk' || f.action.kind === 'crouch' || f.action.kind === 'block';
 
 function regenStamina(f: Fighter): void {
   if (f.sinceSpend >= REGEN_DELAY) f.stamina = Math.min(MAX_STAMINA, f.stamina + REGEN_PER_FRAME);
@@ -45,6 +47,9 @@ function advanceAction(f: Fighter): void {
     a.frame++;
     const d = MOVES[a.move];
     if (a.frame >= startupOf(f, a.move) + d.active + d.recovery) f.action = { kind: 'idle' };
+  } else if (a.kind === 'dodge') {
+    a.frame++;
+    if (a.frame >= DODGE_INVULN + DODGE_RECOVERY) f.action = { kind: 'idle' };
   } else if (a.kind === 'hitstun' || a.kind === 'blockstun') {
     a.frames--;
     if (a.frames <= 0) f.action = { kind: 'idle' };
@@ -70,6 +75,10 @@ function applyInput(m: Match, i: 0 | 1, inp: TickInput): void {
   if (!isFree(f)) return;
   if (inp.attack) {
     startAttack(m, i, inp.attack);
+  } else if (inp.dodge) {
+    f.action = { kind: 'dodge', frame: 0 };
+  } else if (inp.block) {
+    f.action = { kind: 'block' };
   } else if (inp.jump && f.action.kind !== 'crouch') {
     f.action = { kind: 'jump', frame: 0 };
   } else if (inp.crouch) {
@@ -116,23 +125,51 @@ function collectHits(m: Match): Hit[] {
     if (a.frame < start || a.frame >= start + d.active) return;
     const def = m.fighters[1 - i];
     const reach = (def.x - atk.x) * atk.facing;
-    if (reach >= 0 && reach <= d.range) hits.push({ attacker: i as 0 | 1, move: a.move });
+    if (reach < 0 || reach > d.range) return;
+    if (evades(def, d.height)) {
+      if (!a.evaded) m.events.push({ type: 'evaded', fighter: (1 - i) as 0 | 1, move: a.move });
+      a.evaded = true;
+      return;
+    }
+    hits.push({ attacker: i as 0 | 1, move: a.move });
   });
   return hits;
 }
 
+/** Dodge invulnerability, crouching under high attacks, jumping over mid attacks. */
+function evades(def: Fighter, height: 'high' | 'mid'): boolean {
+  const a = def.action;
+  if (a.kind === 'dodge') return a.frame < DODGE_INVULN;
+  if (a.kind === 'crouch') return height === 'high';
+  if (a.kind === 'jump') return height === 'mid' && a.frame >= JUMP_AIR_START && a.frame <= JUMP_AIR_END;
+  return false;
+}
+
+/** Damage values are kept to hundredths so multipliers do not leave float noise in HP. */
+const roundDamage = (x: number) => Math.round(x * 100) / 100;
+
 function applyHit(m: Match, hit: Hit): void {
   const atk = m.fighters[hit.attacker];
   const def = m.fighters[1 - hit.attacker];
-  const damage = MOVES[hit.move].damage;
+  const full = MOVES[hit.move].damage;
   if (atk.action.kind === 'attack') atk.action.hasHit = true;
-  def.hp = Math.max(0, def.hp - damage);
-  def.action = { kind: 'hitstun', frames: HITSTUN };
+  m.hitstop = HITSTOP;
+  if (def.action.kind === 'block' && def.stamina >= BLOCK_STAMINA) {
+    const damage = roundDamage(full * (1 - BLOCK_REDUCTION));
+    def.hp = Math.max(0, roundDamage(def.hp - damage));
+    def.stamina -= BLOCK_STAMINA;
+    def.sinceSpend = 0;
+    def.action = { kind: 'blockstun', frames: BLOCKSTUN };
+    m.events.push({ type: 'blocked', fighter: hit.attacker, move: hit.move, damage });
+    return;
+  }
+  const guardBroken = def.action.kind === 'block';
+  def.hp = Math.max(0, def.hp - full);
+  def.action = { kind: 'hitstun', frames: guardBroken ? GUARD_BREAK_STUN : HITSTUN };
   def.x += atk.facing * KNOCKBACK;
   atk.special = Math.min(MAX_SPECIAL, atk.special + SPECIAL_ON_HIT);
   def.special = Math.min(MAX_SPECIAL, def.special + SPECIAL_ON_HURT);
-  m.hitstop = HITSTOP;
-  m.events.push({ type: 'hit', fighter: hit.attacker, move: hit.move, damage });
+  m.events.push({ type: guardBroken ? 'guard_break' : 'hit', fighter: hit.attacker, move: hit.move, damage: full });
 }
 
 function checkKo(m: Match): void {
