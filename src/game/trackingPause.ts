@@ -3,6 +3,13 @@ import type { TrackingStatus } from '../shared/types';
 export const LOSS_TO_PAUSE_MS = 500;
 export const OK_TO_RESUME_MS = 1000;
 export const COUNTDOWN_MS = 3000;
+/** Without a new engine output for this long (camera unplugged, tracker failing) tracking counts as lost. */
+export const STALE_OUTPUT_MS = 300;
+
+export function effectiveTracking(tracking: TrackingStatus | undefined, lastAt: number | null, now: number): TrackingStatus {
+  if (!tracking || lastAt === null || now - lastAt > STALE_OUTPUT_MS) return 'no_person';
+  return tracking;
+}
 
 export type PauseView = { paused: boolean; countdown: number | null };
 

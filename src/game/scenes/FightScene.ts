@@ -19,7 +19,7 @@ import { WebcamLayer } from '../render/webcamLayer';
 import { NPC_TELEGRAPH } from '../sim/constants';
 import { createMatch, stepMatch } from '../sim/match';
 import type { Match, TickInput } from '../sim/types';
-import { TrackingPause } from '../trackingPause';
+import { TrackingPause, effectiveTracking } from '../trackingPause';
 import { VideoRecorder, downloadBlob, recordingFilename } from '../../recording/videoRecorder';
 import { ActionLabelTimer } from '../../view/webcamPanel';
 
@@ -173,6 +173,7 @@ export class FightScene extends Phaser.Scene {
       this.scene.start('calibration');
     } else {
       this.control = 'keyboard';
+      MotionSession.get().pause();
       this.applyLayout();
       this.updateInfo();
     }
@@ -194,6 +195,7 @@ export class FightScene extends Phaser.Scene {
     this.info.setX(arena.x + arena.w / 2);
     this.recButton.setX(arena.x + arena.w / 2);
     this.overlay.setX(arena.x + arena.w / 2);
+    this.overlay.setWordWrapWidth(arena.w - 80);
   }
 
   private showNotice(text: string): void {
@@ -253,11 +255,12 @@ export class FightScene extends Phaser.Scene {
     this.pressed.clear();
 
     const pause = body
-      ? this.pause.update(session?.lastOut?.tracking ?? 'no_person', now, this.match.result !== null)
+      ? this.pause.update(effectiveTracking(session?.lastOut?.tracking, session?.lastOutAt ?? null, now), now, this.match.result !== null)
       : { paused: false, countdown: null };
     const ticks = this.step.advance(delta);
     if (pause.paused) {
       this.motion.clear();
+      this.intent.clear();
     } else {
       for (let i = 0; i < ticks; i++) {
         const keys = this.intent.next();

@@ -75,6 +75,7 @@ export class CalibrationScene extends Phaser.Scene {
         this.calibrator = new Calibrator(DEFAULT_CONFIG);
         this.progress = null;
       } else if (e.code === 'Escape') {
+        this.session.pause();
         this.scene.start('fight', { control: 'keyboard', view: 'game' });
       }
     };

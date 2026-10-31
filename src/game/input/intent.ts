@@ -11,6 +11,11 @@ export class IntentBuilder {
     this.state = { ...c.state };
   }
 
+  /** Drops queued presses (e.g. made while the fight was paused). */
+  clear(): void {
+    this.queue = [];
+  }
+
   /** One attack per tick from the queue; a queued jump is consumed together with it. */
   next(): TickInput {
     const attackIdx = this.queue.findIndex((a) => a !== 'jump');
