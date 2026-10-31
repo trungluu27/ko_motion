@@ -222,7 +222,7 @@ Input từ cơ thể đến muộn khoảng 150 ms, nên đòn người chơi c�
 
 ## 8. Phase 4 – NPC AI
 
-- `aiInput.ts` là một `InputSource`: đọc snapshot của sim (khoảng cách, trạng thái hai bên, HP, stamina) và xuất `ControlFrame`. Nó dùng **đúng move list và luật** như người chơi, ngoại trừ telegraph bắt buộc ở 6.3.
+- `aiInput.ts` là một nguồn input: đọc snapshot của sim (khoảng cách, trạng thái hai bên, HP, stamina) và xuất thẳng `TickInput` (kiểu sim dùng), không qua `ControlFrame` vì AI không cần bước gộp event. Trạng thái đối thủ được nhìn **trễ `reactionMs`**. Nó dùng **đúng move list và luật** như người chơi, ngoại trừ telegraph bắt buộc ở 6.3.
 - `fsm.ts`, các state: `Idle, Approach, Attack, Block, Dodge, Counter, Retreat, Special`. Ra quyết định mỗi 100 ms, phản ứng với hành động của người chơi sau `reactionMs`.
 - `difficulty.ts`:
 
@@ -230,7 +230,7 @@ Input từ cơ thể đến muộn khoảng 150 ms, nên đòn người chơi c�
 |---|---|---|---|
 | reactionMs | 600 | 400 | 250 |
 | aggression (xác suất chủ động tấn công khi ở tầm) | 0.25 | 0.45 | 0.6 |
-| blockChance / dodgeChance khi thấy đòn | 0.15 / 0.05 | 0.4 / 0.15 | 0.55 / 0.25 |
+| blockChance / dodgeChance (block = thủ thế phòng bị khi đối thủ ở gần; vì phản xạ 250–600 ms chậm hơn startup đòn đấm 67–100 ms, AI không thể block *sau khi thấy* đòn) | 0.15 / 0.05 | 0.4 / 0.15 | 0.55 / 0.25 |
 | counterChance khi người chơi đang recovery | 0 | 0.3 | 0.6 |
 | comboLen tối đa | 1 | 2 | 3 |
 | idlePauseMs | 1200 | 700 | 400 |
