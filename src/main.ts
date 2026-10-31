@@ -1,2 +1,12 @@
-const app = document.querySelector<HTMLDivElement>('#app')!;
-app.innerHTML = `<h1>BODY FIGHTER – coming soon</h1><p><a href="./lab.html">Mở Motion Lab</a></p>`;
+import Phaser from 'phaser';
+import { FightScene } from './game/scenes/FightScene';
+
+new Phaser.Game({
+  type: Phaser.AUTO,
+  parent: 'app',
+  width: 1280,
+  height: 720,
+  backgroundColor: '#020617',
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+  scene: [FightScene],
+});
