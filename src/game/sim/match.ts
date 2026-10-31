@@ -228,4 +228,8 @@ export function stepMatch(m: Match, inputs: [TickInput, TickInput]): void {
   checkKo(m);
   m.framesLeft--;
   m.frame++;
+  if (!m.result && m.framesLeft <= 0) {
+    const [a, b] = m.fighters;
+    m.result = { winner: a.hp === b.hp ? null : a.hp > b.hp ? 0 : 1, reason: 'timeout' };
+  }
 }
