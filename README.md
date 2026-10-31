@@ -96,6 +96,20 @@ Màn hình 1280×720 chia đôi: **trái** là webcam lật gương, skeleton v�
 
 Bảng debug chỉ đo từ lúc frame được capture tới lúc ra event. Muốn đo toàn bộ (camera → màn hình), dùng điện thoại quay slow-mo 240 fps cảnh bạn đấm, có màn hình trong khung hình. Đếm số frame từ lúc tay duỗi hết tới lúc chữ "PUNCH" hiện lên, rồi chia cho 240 để ra giây.
 
+## Đồ hoạ: nhân vật và sân đấu
+
+Nhân vật và animation lấy từ **Mixamo (Adobe)**, render thành sprite 2D bằng Blender. Sân phố đêm neon được dựng hoàn toàn bằng script. Sprite và nền đã render nằm sẵn trong `public/`, nên chơi không cần Blender.
+
+Muốn render lại (ví dụ sau khi đổi animation):
+
+1. Cài Blender (bản LTS). Đặt file Mixamo vào `art/raw/characters/fighter_a.fbx`, `fighter_b.fbx` và `art/raw/anims/<tên>.fbx` (danh sách trong `art/sprites.json`). Thư mục `art/raw/` không được đưa lên git, vì điều khoản Mixamo không cho phát tán file gốc.
+2. `npm run render:sprites`: render mọi clip ra `art/render/` (khoảng 3 phút). Thêm `-- --only fighter_a --clips punch_l` để render riêng.
+3. `npm run preview:sprites`: ảnh xem trước `art/render/<fighter>/_preview.png`, khung "chạm" của mỗi đòn có viền đỏ.
+4. `.venv\Scripts\python tools/sprites/pack.py`: ghép atlas WebP vào `public/sprites/`.
+5. `npm run render:stage`: dựng và render sân vào `public/stages/neon_street/`.
+
+Mốc khung của mỗi clip (`start`, `impact`, `end`) nằm trong `art/sprites.json`. Thêm `-- --scan 4` vào lệnh render rồi chạy `tools/sprites/scan_sheet.py <fighter> <clip>` để xem toàn bộ clip có đánh số khung.
+
 ## Python (phân tích dữ liệu)
 
 Python chạy trong virtualenv `.venv` ở gốc repo. Xem [`tools/README.md`](tools/README.md).
