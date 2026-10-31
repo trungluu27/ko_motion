@@ -1,10 +1,11 @@
 import {
   ARENA_W, BLOCK_REDUCTION, BLOCK_STAMINA, BLOCKSTUN, DODGE_INVULN, DODGE_RECOVERY, EDGE, GUARD_BREAK_STUN,
   HITSTOP, HITSTUN, JUMP_AIR_END, JUMP_AIR_START, JUMP_FRAMES, KNOCKBACK, MATCH_FRAMES, MAX_HP, MAX_SPECIAL, MAX_STAMINA, MIN_GAP,
-  REGEN_DELAY, REGEN_PER_FRAME, SPECIAL_ON_HIT, SPECIAL_ON_HURT, START_X, WALK_SPEED,
+  REGEN_DELAY, REGEN_PER_FRAME, SPECIAL_CANCEL_FRAMES, SPECIAL_ON_HIT, SPECIAL_ON_HURT, START_X, WALK_SPEED,
 } from './constants';
+import { HISTORY_LIMIT, comboByName, matchCombo } from './combo';
 import { MOVES } from './moves';
-import type { Fighter, Match, MoveId, TickInput } from './types';
+import type { Fighter, HistoryToken, Match, MoveId, TickInput } from './types';
 
 function newFighter(x: number, facing: 1 | -1, extraStartup: number): Fighter {
   return {
@@ -56,6 +57,25 @@ function advanceAction(f: Fighter): void {
   }
 }
 
+function remember(m: Match, f: Fighter, token: HistoryToken): void {
+  f.history.push({ token, frame: m.frame });
+  if (f.history.length > HISTORY_LIMIT) f.history.shift();
+}
+
+const otherPunch = (move: MoveId): MoveId | null => (move === 'punch_l' ? 'punch_r' : move === 'punch_r' ? 'punch_l' : null);
+
+/** Both punches within SPECIAL_CANCEL_FRAMES on a full meter turn the first punch into the special. */
+function trySpecialCancel(m: Match, i: 0 | 1, inp: TickInput): void {
+  const f = m.fighters[i];
+  const a = f.action;
+  if (a.kind !== 'attack' || !inp.attack || a.frame > SPECIAL_CANCEL_FRAMES) return;
+  if (otherPunch(a.move) !== inp.attack || f.special < MOVES.special.specialCost) return;
+  f.special -= MOVES.special.specialCost;
+  f.action = { kind: 'attack', move: 'special', frame: 0, hasHit: false, evaded: false, combo: null };
+  remember(m, f, 'special');
+  m.events.push({ type: 'attack', fighter: i, move: 'special' });
+}
+
 function startAttack(m: Match, i: 0 | 1, move: MoveId): void {
   const f = m.fighters[i];
   const d = MOVES[move];
@@ -66,18 +86,21 @@ function startAttack(m: Match, i: 0 | 1, move: MoveId): void {
   }
   f.stamina -= d.stamina;
   if (d.stamina > 0) f.sinceSpend = 0;
-  f.action = { kind: 'attack', move, frame: 0, hasHit: false, evaded: false, combo: null };
+  remember(m, f, move);
+  f.action = { kind: 'attack', move, frame: 0, hasHit: false, evaded: false, combo: matchCombo(f.history)?.name ?? null };
   m.events.push({ type: 'attack', fighter: i, move });
 }
 
 function applyInput(m: Match, i: 0 | 1, inp: TickInput): void {
   const f = m.fighters[i];
-  if (!isFree(f)) return;
+  if (!isFree(f)) return trySpecialCancel(m, i, inp);
   if (inp.attack) {
     startAttack(m, i, inp.attack);
   } else if (inp.dodge) {
     f.action = { kind: 'dodge', frame: 0 };
+    remember(m, f, 'dodge');
   } else if (inp.block) {
+    if (f.action.kind !== 'block') remember(m, f, 'block');
     f.action = { kind: 'block' };
   } else if (inp.jump && f.action.kind !== 'crouch') {
     f.action = { kind: 'jump', frame: 0 };
@@ -151,7 +174,8 @@ const roundDamage = (x: number) => Math.round(x * 100) / 100;
 function applyHit(m: Match, hit: Hit): void {
   const atk = m.fighters[hit.attacker];
   const def = m.fighters[1 - hit.attacker];
-  const full = MOVES[hit.move].damage;
+  const combo = atk.action.kind === 'attack' && atk.action.combo ? comboByName(atk.action.combo) : null;
+  const full = roundDamage(MOVES[hit.move].damage * (combo?.damageMult ?? 1));
   if (atk.action.kind === 'attack') atk.action.hasHit = true;
   m.hitstop = HITSTOP;
   if (def.action.kind === 'block' && def.stamina >= BLOCK_STAMINA) {
@@ -164,12 +188,16 @@ function applyHit(m: Match, hit: Hit): void {
     return;
   }
   const guardBroken = def.action.kind === 'block';
-  def.hp = Math.max(0, def.hp - full);
+  def.hp = Math.max(0, roundDamage(def.hp - full));
   def.action = { kind: 'hitstun', frames: guardBroken ? GUARD_BREAK_STUN : HITSTUN };
   def.x += atk.facing * KNOCKBACK;
   atk.special = Math.min(MAX_SPECIAL, atk.special + SPECIAL_ON_HIT);
   def.special = Math.min(MAX_SPECIAL, def.special + SPECIAL_ON_HURT);
   m.events.push({ type: guardBroken ? 'guard_break' : 'hit', fighter: hit.attacker, move: hit.move, damage: full });
+  if (combo) {
+    atk.special = Math.min(MAX_SPECIAL, atk.special + combo.specialBonus);
+    m.events.push({ type: 'combo', fighter: hit.attacker, combo: combo.name });
+  }
 }
 
 function checkKo(m: Match): void {
