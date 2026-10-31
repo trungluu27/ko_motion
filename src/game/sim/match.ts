@@ -5,7 +5,7 @@ import {
 } from './constants';
 import { HISTORY_LIMIT, comboByName, matchCombo } from './combo';
 import { MOVES } from './moves';
-import type { Fighter, HistoryToken, Match, MoveId, TickInput } from './types';
+import type { ComboName, Fighter, HistoryToken, Match, MoveId, TickInput } from './types';
 
 function newFighter(x: number, facing: 1 | -1, extraStartup: number): Fighter {
   return {
@@ -23,6 +23,7 @@ export function createMatch(opts: { extraStartup?: [number, number] } = {}): Mat
     framesLeft: MATCH_FRAMES,
     result: null,
     events: [],
+    buffered: [null, null],
   };
 }
 
@@ -76,27 +77,27 @@ function trySpecialCancel(m: Match, i: 0 | 1, inp: TickInput): void {
   m.events.push({ type: 'attack', fighter: i, move: 'special' });
 }
 
-function startAttack(m: Match, i: 0 | 1, move: MoveId): void {
+/** Starts the attack if there is enough stamina; otherwise reports `tired` and returns false. */
+function startAttack(m: Match, i: 0 | 1, move: MoveId): boolean {
   const f = m.fighters[i];
   const d = MOVES[move];
   if (f.stamina < d.stamina) {
     m.events.push({ type: 'tired', fighter: i, move });
-    f.action = { kind: 'idle' };
-    return;
+    return false;
   }
   f.stamina -= d.stamina;
   if (d.stamina > 0) f.sinceSpend = 0;
   remember(m, f, move);
   f.action = { kind: 'attack', move, frame: 0, hasHit: false, evaded: false, combo: matchCombo(f.history)?.name ?? null };
   m.events.push({ type: 'attack', fighter: i, move });
+  return true;
 }
 
 function applyInput(m: Match, i: 0 | 1, inp: TickInput): void {
   const f = m.fighters[i];
   if (!isFree(f)) return trySpecialCancel(m, i, inp);
-  if (inp.attack) {
-    startAttack(m, i, inp.attack);
-  } else if (inp.dodge) {
+  if (inp.attack && startAttack(m, i, inp.attack)) return;
+  if (inp.dodge) {
     f.action = { kind: 'dodge', frame: 0 };
     remember(m, f, 'dodge');
   } else if (inp.block) {
@@ -135,7 +136,8 @@ function resolveSpacing(m: Match): void {
   b.facing = a.x > b.x ? 1 : -1;
 }
 
-type Hit = { attacker: 0 | 1; move: MoveId };
+/** A connecting attack, captured before any hit of this tick is applied (so trades are judged on equal terms). */
+type Hit = { attacker: 0 | 1; move: MoveId; combo: ComboName | null };
 
 /** Active attacks that connect this tick, judged from the same state for both fighters (fair trades). */
 function collectHits(m: Match): Hit[] {
@@ -154,7 +156,7 @@ function collectHits(m: Match): Hit[] {
       a.evaded = true;
       return;
     }
-    hits.push({ attacker: i as 0 | 1, move: a.move });
+    hits.push({ attacker: i as 0 | 1, move: a.move, combo: a.combo });
   });
   return hits;
 }
@@ -174,7 +176,7 @@ const roundDamage = (x: number) => Math.round(x * 100) / 100;
 function applyHit(m: Match, hit: Hit): void {
   const atk = m.fighters[hit.attacker];
   const def = m.fighters[1 - hit.attacker];
-  const combo = atk.action.kind === 'attack' && atk.action.combo ? comboByName(atk.action.combo) : null;
+  const combo = hit.combo ? comboByName(hit.combo) : null;
   const full = roundDamage(MOVES[hit.move].damage * (combo?.damageMult ?? 1));
   if (atk.action.kind === 'attack') atk.action.hasHit = true;
   m.hitstop = HITSTOP;
@@ -216,12 +218,17 @@ export function stepMatch(m: Match, inputs: [TickInput, TickInput]): void {
   if (m.result) return;
   if (m.hitstop > 0) {
     m.hitstop--;
+    inputs.forEach((inp, i) => {
+      if (inp.attack) m.buffered[i] = inp.attack;
+    });
     return;
   }
   m.fighters.forEach((f, i) => {
     regenStamina(f);
     advanceAction(f);
-    applyInput(m, i as 0 | 1, inputs[i]);
+    const buffered = m.buffered[i];
+    m.buffered[i] = null;
+    applyInput(m, i as 0 | 1, inputs[i].attack || !buffered ? inputs[i] : { ...inputs[i], attack: buffered });
   });
   for (const hit of collectHits(m)) applyHit(m, hit);
   resolveSpacing(m);

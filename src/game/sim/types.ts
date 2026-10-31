@@ -74,4 +74,6 @@ export type Match = {
   framesLeft: number;
   result: MatchResult | null;
   events: SimEvent[];
+  /** attack presses made during hitstop, applied on the first tick after it */
+  buffered: [MoveId | null, MoveId | null];
 };
