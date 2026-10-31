@@ -127,7 +127,7 @@ Mỗi recognizer là một state machine nhỏ, ngưỡng nằm trong `config.ts
 
 | Động tác | Loại | Quy tắc kích hoạt (ban đầu) | Điều kiện reset |
 |---|---|---|---|
-| Punch L/R | event | `armExt` vượt 0.80 **và** `armExtVel` > 2.5/s **và** `elbowAngle` > 100° (≈ độ duỗi 0.78; 140° ban đầu mâu thuẫn với 0.80), cổ tay nằm giữa hông và đỉnh đầu; không đang block | `armExt` < 0.55 (thu tay), refractory 180 ms |
+| Punch L/R | event | `armExt` vượt 0.80 **và** `armExtVel` > 2.5/s **và** `elbowAngle` > 100° (≈ độ duỗi 0.78; 140° ban đầu mâu thuẫn với 0.80), cổ tay nằm giữa giữa-thân và trên đỉnh đầu; không đang block | `armExt` < 0.55 (thu tay), refractory 180 ms |
 | Kick L/R | event | `ankleLift` của một chân > 0.35, chân kia vẫn gần sàn (< 0.10), vận tốc nâng > 1.5/s | mắt cá về < 0.15, refractory 350 ms |
 | Jump | event | cả hai mắt cá **và** tâm hông nâng > 0.12 × torso trong ≤ 300 ms | tiếp đất (hông về < 0.05), refractory 500 ms |
 | Block | state | cả hai cổ tay cao hơn vai, cách mũi < 0.7 × vai, giữ ≥ 100 ms | điều kiện mất ≥ 120 ms (hysteresis) |

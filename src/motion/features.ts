@@ -60,6 +60,7 @@ export class FeatureExtractor {
     const shoulders = mid(im[LM.L_SHOULDER], im[LM.R_SHOULDER]);
     const nose = im[LM.NOSE];
     const zoneTop = nose.y - 0.5 * cal.torsoPx;
+    const zoneBottom = hip.y - 0.5 * cal.torsoPx;
 
     const armExt = lr((s) => dist(w[ARM[s][0]], w[ARM[s][2]]) / (cal.upperArm[s] + cal.foreArm[s]));
     const ankleY = { l: cal.ankleYL, r: cal.ankleYR };
@@ -82,7 +83,7 @@ export class FeatureExtractor {
       elbowAngle: lr((s) => angleDeg(w[ARM[s][0]], w[ARM[s][1]], w[ARM[s][2]])),
       wristNose: lr((s) => dist2d(im[ARM[s][2]], nose) / cal.shoulderPx),
       wristAboveShoulder: lr((s) => im[ARM[s][2]].y < im[ARM[s][0]].y),
-      wristInStrikeZone: lr((s) => im[ARM[s][2]].y < hip.y && im[ARM[s][2]].y > zoneTop),
+      wristInStrikeZone: lr((s) => im[ARM[s][2]].y < zoneBottom && im[ARM[s][2]].y > zoneTop),
       ankleLift,
       ankleLiftVel: vel(ankleLift, (s) => s.ankleLift),
       vis: {
