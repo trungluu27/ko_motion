@@ -1,5 +1,6 @@
 import type { PoseFrame } from '../shared/types';
 import { type Calibration, Calibrator, type CalibrationProgress } from '../motion/calibration';
+import { loadCalibration, saveCalibration } from '../motion/calibrationStore';
 import { CameraError, closeCamera, listCameras, openCamera } from '../motion/camera';
 import { DEFAULT_CONFIG } from '../motion/config';
 import { type EngineOutput, MotionEngine } from '../motion/motionEngine';
@@ -14,7 +15,6 @@ export const LAB_W = 1280;
 export const LAB_H = 720;
 export const WEBCAM_W = 480;
 
-const CAL_KEY = 'bf.calibration';
 const MODEL_KEY = 'bf.model';
 
 export type FrameListener = (frame: PoseFrame | null, out: EngineOutput) => void;
@@ -167,13 +167,8 @@ export class LabApp {
   }
 
   private loadCalibration(): void {
-    const raw = localStorage.getItem(CAL_KEY);
-    if (!raw) return;
-    try {
-      this.setCalibration(JSON.parse(raw) as Calibration);
-    } catch {
-      localStorage.removeItem(CAL_KEY);
-    }
+    const cal = loadCalibration();
+    if (cal) this.setCalibration(cal);
   }
 
   setCalibration(cal: Calibration | null): void {
@@ -195,7 +190,7 @@ export class LabApp {
       this.calStatus = this.calibrator.push(frame);
       if (this.calStatus.calibration) {
         this.setCalibration(this.calStatus.calibration);
-        localStorage.setItem(CAL_KEY, JSON.stringify(this.calStatus.calibration));
+        saveCalibration(this.calStatus.calibration);
         this.calibrator = null;
         this.readyUntil = now + 1500;
       }
