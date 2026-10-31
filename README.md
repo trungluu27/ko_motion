@@ -2,7 +2,7 @@
 
 Game đối kháng võ thuật 2D điều khiển bằng chuyển động toàn thân qua webcam (MediaPipe Pose). Chạy hoàn toàn trên trình duyệt.
 
-> Trạng thái: **Phase 1 – Motion Lab**: nhận diện chuyển động, ghi/phát lại phiên, quay video. Thiết kế đầy đủ: [`docs/superpowers/specs/2026-10-31-body-fighter-design.md`](docs/superpowers/specs/2026-10-31-body-fighter-design.md).
+> Trạng thái: **Phase 2 – Combat Core**: trận đấu chơi bằng bàn phím với bao cát. Phase 1 (Motion Lab) đã xong. Thiết kế đầy đủ: [`docs/superpowers/specs/2026-10-31-body-fighter-design.md`](docs/superpowers/specs/2026-10-31-body-fighter-design.md).
 
 ## Chạy
 
@@ -11,7 +11,7 @@ Yêu cầu: Node 20+, Chrome hoặc Edge, webcam.
 ```bash
 npm install
 npm run setup     # tải model MediaPipe vào public/models và copy WASM
-npm run dev       # mở http://localhost:5173/lab.html
+npm run dev       # game: http://localhost:5173/ · Motion Lab: http://localhost:5173/lab.html
 ```
 
 Các lệnh khác:
@@ -22,6 +22,25 @@ Các lệnh khác:
 | `npm run eval` | Phát lại mọi phiên trong `fixtures/sessions/` và in precision/recall |
 | `npm run eval -- --dump out` | Như trên, đồng thời xuất feature ra CSV cho Python |
 | `npm run build` | Build tĩnh vào `dist/` |
+
+## Chơi thử bằng bàn phím
+
+Mở `http://localhost:5173/`. Bạn là võ sĩ màu cyan, đối thủ màu hồng là bao cát.
+
+| Phím | Hành động |
+|---|---|
+| A / D | Đi trái / phải |
+| W | Nhảy (né đòn đá) |
+| S (giữ) | Cúi (né đòn đấm) |
+| J / K | Đấm trái / phải |
+| U / I | Đá trái / phải |
+| Space (giữ) | Block (giảm 80% sát thương, tốn stamina) |
+| Q / E | Né (miễn đòn trong 1/3 giây) |
+| J rồi K thật nhanh khi thanh tím đầy | Special: Power Blast |
+| 1 / 2 / 3 | Bao cát: đứng yên / ra jab có báo trước (tay nhấp nháy vàng) / chỉ block |
+| R | Đấu lại |
+
+Combo: J→K (Double Jab), J→K→I (Triple Attack), K→U→I (Power Combo), Block→Né→K (Counter).
 
 ## Đặt camera và đứng
 
