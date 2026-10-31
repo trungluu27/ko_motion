@@ -2,7 +2,7 @@
 
 Game đối kháng võ thuật 2D điều khiển bằng chuyển động toàn thân qua webcam (MediaPipe Pose). Chạy hoàn toàn trên trình duyệt.
 
-> Trạng thái: **Phase 4 – NPC AI**: đấu với AI 3 cấp độ bằng bàn phím. Đã xong: Phase 1 (Motion Lab), Phase 2 (Combat Core). Thiết kế đầy đủ: [`docs/superpowers/specs/2026-10-31-body-fighter-design.md`](docs/superpowers/specs/2026-10-31-body-fighter-design.md).
+> Trạng thái: **Phase 3 – điều khiển bằng cơ thể**: đánh với AI bằng webcam, chia đôi màn hình, quay video. Đã xong Phase 1, 2, 4. Thiết kế đầy đủ: [`docs/superpowers/specs/2026-10-31-body-fighter-design.md`](docs/superpowers/specs/2026-10-31-body-fighter-design.md).
 
 ## Chạy
 
@@ -44,6 +44,20 @@ Mở `http://localhost:5173/`. Bạn là võ sĩ màu cyan, đối thủ màu h�
 Combo: J→K (Double Jab), J→K→I (Triple Attack), K→U→I (Power Combo), Block→Né→K (Counter).
 
 AI: Easy nghỉ nhiều, hiếm khi phòng thủ. Normal biết combo 2 đòn, thủ thế khi bạn áp sát và đôi khi phạt đòn hụt. Hard phản xạ nhanh (250 ms), combo 3 đòn, và hay đánh trả ngay sau khi bạn ra đòn hụt. Vì mọi đòn của AI đều có báo trước 0,4 giây, bạn luôn có cơ hội đỡ hoặc né. Normal và Hard còn **thích nghi theo thói quen của bạn** trong 20 giây gần nhất: hay đấm thì AI thủ nhiều hơn, hay đá thì nó né và giữ khoảng cách, hay block thì nó đánh mạnh để làm cạn stamina của bạn.
+
+## Chơi bằng cơ thể
+
+1. Mở `http://localhost:5173/`, bấm vào màn hình game, rồi nhấn **C**.
+2. Màn **Calibration** mở webcam. Đứng nghiêng khoảng 45° (vai trái hướng về camera), cách 2,5–3 m, đứng thủ thế yên khoảng 2 giây cho tới khi hiện "Sẵn sàng!". Nếu đã calibrate trước đó (ở game hoặc Motion Lab), nhấn **Enter** là vào trận ngay; **K** để calibrate lại.
+3. Trong trận: đấm, đá, che mặt (block), cúi, nghiêng người (né), dịch người sang trái/phải (đi). Bàn phím vẫn dùng được song song.
+4. Bước ra khỏi khung hình thì trận tự tạm dừng; đứng lại vào khung 1 giây thì đếm ngược 3-2-1 rồi chạy tiếp.
+
+| Phím | Việc |
+|---|---|
+| C | Đổi bàn phím ↔ cơ thể |
+| V | Đổi hiển thị: chia đôi (webcam \| trận) → webcam góc → chỉ game |
+| P hoặc nút ⏺ | Bắt đầu/dừng quay video `.webm` (gồm webcam, trận đấu, âm thanh) |
+| F3 | Hiện FPS game, FPS tracking, độ trễ |
 
 ## Đặt camera và đứng
 

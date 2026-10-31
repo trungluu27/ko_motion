@@ -217,7 +217,7 @@ Input từ cơ thể đến muộn khoảng 150 ms, nên đòn người chơi c�
 - **Scene Calibration** dùng lại logic 5.4 và WebcamPanel. Không vào trận khi chưa có trạng thái "Sẵn sàng".
 - **Mất tracking giữa trận:** sau 500 ms không `ok` thì tự pause, hiện overlay "Bước vào lại khung hình". Khi `ok` liên tục 1 s thì đếm ngược 3-2-1 và tiếp tục.
 - **Chế độ hiển thị** (Settings): `split` (mặc định, 1280×720: webcam 480 px bên trái, trận đấu 800 px bên phải), `pip` (webcam góc phải trên), `game` (chỉ có game). WebcamPanel được vẽ **bên trong canvas Phaser** (texture video + Graphics), nên toàn bộ khung hình nằm trên một canvas.
-- **Record:** `videoRecorder.ts` dùng `canvas.captureStream(30)` + audio track từ `AudioContext` (qua `MediaStreamAudioDestinationNode`) → `MediaRecorder` (`video/webm;codecs=vp9`, fallback vp8) → tải xuống `bodyfighter-YYYYMMDD-HHmmss.webm`. Nút ⏺ có trên HUD, phím tắt `R`, có chấm đỏ và đồng hồ khi đang ghi. Motion Lab dùng cùng module này với canvas riêng.
+- **Record:** `videoRecorder.ts` dùng `canvas.captureStream(30)` + audio track từ `AudioContext` (qua `MediaStreamAudioDestinationNode`) → `MediaRecorder` (`video/webm;codecs=vp9`, fallback vp8) → tải xuống `bodyfighter-YYYYMMDD-HHmmss.webm`. Nút ⏺ có trên HUD, phím tắt `P` (trong game `R` đã là "đấu lại"), có chấm đỏ và đồng hồ khi đang ghi. Motion Lab dùng cùng module này với canvas riêng.
 - **Hiệu năng:** đo FPS của game khi bật tracking. Nếu game tụt dưới 55 FPS thì chuyển PoseLandmarker sang Web Worker (task có điều kiện trong plan Phase 3).
 
 ## 8. Phase 4 – NPC AI
