@@ -1,8 +1,9 @@
 import {
-  ARENA_W, EDGE, JUMP_FRAMES, MATCH_FRAMES, MAX_HP, MAX_STAMINA, MIN_GAP, REGEN_DELAY, REGEN_PER_FRAME,
-  START_X, WALK_SPEED,
+  ARENA_W, EDGE, HITSTOP, HITSTUN, JUMP_FRAMES, KNOCKBACK, MATCH_FRAMES, MAX_HP, MAX_SPECIAL, MAX_STAMINA, MIN_GAP,
+  REGEN_DELAY, REGEN_PER_FRAME, SPECIAL_ON_HIT, SPECIAL_ON_HURT, START_X, WALK_SPEED,
 } from './constants';
-import type { Fighter, Match, TickInput } from './types';
+import { MOVES } from './moves';
+import type { Fighter, Match, MoveId, TickInput } from './types';
 
 function newFighter(x: number, facing: 1 | -1, extraStartup: number): Fighter {
   return {
@@ -31,18 +32,45 @@ function regenStamina(f: Fighter): void {
   f.sinceSpend++;
 }
 
+/** Frames until the move's active window opens, including the fighter's telegraph. */
+const startupOf = (f: Fighter, move: MoveId) => MOVES[move].startup + f.extraStartup;
+
 /** Advances timed actions; returns to idle when they finish. */
 function advanceAction(f: Fighter): void {
   const a = f.action;
   if (a.kind === 'jump') {
     a.frame++;
     if (a.frame >= JUMP_FRAMES) f.action = { kind: 'idle' };
+  } else if (a.kind === 'attack') {
+    a.frame++;
+    const d = MOVES[a.move];
+    if (a.frame >= startupOf(f, a.move) + d.active + d.recovery) f.action = { kind: 'idle' };
+  } else if (a.kind === 'hitstun' || a.kind === 'blockstun') {
+    a.frames--;
+    if (a.frames <= 0) f.action = { kind: 'idle' };
   }
 }
 
-function applyInput(f: Fighter, inp: TickInput): void {
+function startAttack(m: Match, i: 0 | 1, move: MoveId): void {
+  const f = m.fighters[i];
+  const d = MOVES[move];
+  if (f.stamina < d.stamina) {
+    m.events.push({ type: 'tired', fighter: i, move });
+    f.action = { kind: 'idle' };
+    return;
+  }
+  f.stamina -= d.stamina;
+  if (d.stamina > 0) f.sinceSpend = 0;
+  f.action = { kind: 'attack', move, frame: 0, hasHit: false, evaded: false, combo: null };
+  m.events.push({ type: 'attack', fighter: i, move });
+}
+
+function applyInput(m: Match, i: 0 | 1, inp: TickInput): void {
+  const f = m.fighters[i];
   if (!isFree(f)) return;
-  if (inp.jump && f.action.kind !== 'crouch') {
+  if (inp.attack) {
+    startAttack(m, i, inp.attack);
+  } else if (inp.jump && f.action.kind !== 'crouch') {
     f.action = { kind: 'jump', frame: 0 };
   } else if (inp.crouch) {
     f.action = { kind: 'crouch' };
@@ -75,14 +103,64 @@ function resolveSpacing(m: Match): void {
   b.facing = a.x > b.x ? 1 : -1;
 }
 
+type Hit = { attacker: 0 | 1; move: MoveId };
+
+/** Active attacks that connect this tick, judged from the same state for both fighters (fair trades). */
+function collectHits(m: Match): Hit[] {
+  const hits: Hit[] = [];
+  m.fighters.forEach((atk, i) => {
+    const a = atk.action;
+    if (a.kind !== 'attack' || a.hasHit) return;
+    const d = MOVES[a.move];
+    const start = startupOf(atk, a.move);
+    if (a.frame < start || a.frame >= start + d.active) return;
+    const def = m.fighters[1 - i];
+    const reach = (def.x - atk.x) * atk.facing;
+    if (reach >= 0 && reach <= d.range) hits.push({ attacker: i as 0 | 1, move: a.move });
+  });
+  return hits;
+}
+
+function applyHit(m: Match, hit: Hit): void {
+  const atk = m.fighters[hit.attacker];
+  const def = m.fighters[1 - hit.attacker];
+  const damage = MOVES[hit.move].damage;
+  if (atk.action.kind === 'attack') atk.action.hasHit = true;
+  def.hp = Math.max(0, def.hp - damage);
+  def.action = { kind: 'hitstun', frames: HITSTUN };
+  def.x += atk.facing * KNOCKBACK;
+  atk.special = Math.min(MAX_SPECIAL, atk.special + SPECIAL_ON_HIT);
+  def.special = Math.min(MAX_SPECIAL, def.special + SPECIAL_ON_HURT);
+  m.hitstop = HITSTOP;
+  m.events.push({ type: 'hit', fighter: hit.attacker, move: hit.move, damage });
+}
+
+function checkKo(m: Match): void {
+  const down = m.fighters.map((f) => f.hp <= 0);
+  if (!down[0] && !down[1]) return;
+  m.fighters.forEach((f, i) => {
+    if (down[i]) f.action = { kind: 'ko' };
+    else m.events.push({ type: 'ko', fighter: i as 0 | 1 });
+  });
+  m.result = { winner: down[0] && down[1] ? null : down[0] ? 1 : 0, reason: 'ko' };
+}
+
 /** Advances the match by one 60 Hz tick. */
 export function stepMatch(m: Match, inputs: [TickInput, TickInput]): void {
   m.events = [];
+  if (m.result) return;
+  if (m.hitstop > 0) {
+    m.hitstop--;
+    return;
+  }
   m.fighters.forEach((f, i) => {
     regenStamina(f);
     advanceAction(f);
-    applyInput(f, inputs[i]);
+    applyInput(m, i as 0 | 1, inputs[i]);
   });
+  for (const hit of collectHits(m)) applyHit(m, hit);
   resolveSpacing(m);
+  checkKo(m);
+  m.framesLeft--;
   m.frame++;
 }
