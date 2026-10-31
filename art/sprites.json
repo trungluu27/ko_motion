@@ -1,23 +1,143 @@
 {
-  "fighters": ["fighter_a", "fighter_b"],
+  "fighters": [
+    "fighter_a",
+    "fighter_b"
+  ],
   "height_px": 384,
   "clips": {
-    "idle": { "file": "idle.fbx", "kind": "loop", "start": 1, "end": 121 },
-    "walk_fwd": { "file": "walk_fwd.fbx", "kind": "loop", "start": 1, "end": 72 },
-    "walk_back": { "file": "walk_back.fbx", "kind": "loop", "start": 1, "end": 89 },
-    "jump": { "file": "jump.fbx", "kind": "once", "start": 10, "end": 100 },
-    "crouch": { "file": "crouch.fbx", "kind": "hold", "start": 1, "end": 30 },
-    "punch_l": { "file": "punch_l.fbx", "kind": "attack", "start": 1, "impact": 20, "end": 50, "frames": [4, 3, 10] },
-    "punch_r": { "file": "punch_r.fbx", "kind": "attack", "start": 1, "impact": 18, "end": 45, "frames": [6, 3, 14] },
-    "kick_l": { "file": "kick_l.fbx", "kind": "attack", "start": 1, "impact": 40, "end": 100, "frames": [8, 4, 18] },
-    "kick_r": { "file": "kick_r.fbx", "kind": "attack", "start": 1, "impact": 50, "end": 120, "frames": [10, 4, 20] },
-    "special": { "file": "special.fbx", "kind": "attack", "start": 1, "impact": 120, "end": 250, "frames": [12, 6, 30] },
-    "block": { "file": "block.fbx", "kind": "hold", "start": 1, "end": 30 },
-    "dodge": { "file": "dodge.fbx", "kind": "once", "start": 1, "end": 60 },
-    "hit_high": { "file": "hit_high.fbx", "kind": "once", "start": 1, "end": 60 },
-    "hit_mid": { "file": "hit_mid.fbx", "kind": "once", "start": 1, "end": 60 },
-    "knockdown": { "file": "knockdown.fbx", "kind": "once", "start": 1, "end": 129 },
-    "victory": { "file": "victory.fbx", "kind": "loop", "start": 1, "end": 181 },
-    "defeat": { "file": "defeat.fbx", "kind": "once", "start": 1, "end": 181 }
+    "idle": {
+      "file": "idle.fbx",
+      "kind": "loop",
+      "start": 1,
+      "end": 121
+    },
+    "walk_fwd": {
+      "file": "walk_fwd.fbx",
+      "kind": "loop",
+      "start": 1,
+      "end": 72,
+      "align": true
+    },
+    "walk_back": {
+      "file": "walk_back.fbx",
+      "kind": "loop",
+      "start": 1,
+      "end": 89,
+      "align": true
+    },
+    "jump": {
+      "file": "jump.fbx",
+      "kind": "once",
+      "start": 19,
+      "end": 91
+    },
+    "crouch": {
+      "file": "crouch.fbx",
+      "kind": "hold",
+      "start": 1,
+      "end": 13
+    },
+    "punch_l": {
+      "file": "punch_l.fbx",
+      "kind": "attack",
+      "start": 13,
+      "impact": 24,
+      "end": 41,
+      "frames": [
+        4,
+        3,
+        10
+      ]
+    },
+    "punch_r": {
+      "file": "punch_r.fbx",
+      "kind": "attack",
+      "start": 9,
+      "impact": 23,
+      "end": 41,
+      "frames": [
+        6,
+        3,
+        14
+      ]
+    },
+    "kick_l": {
+      "file": "kick_l.fbx",
+      "kind": "attack",
+      "start": 41,
+      "impact": 63,
+      "end": 89,
+      "frames": [
+        8,
+        4,
+        18
+      ]
+    },
+    "kick_r": {
+      "file": "kick_r.fbx",
+      "kind": "attack",
+      "start": 33,
+      "impact": 60,
+      "end": 105,
+      "frames": [
+        10,
+        4,
+        20
+      ]
+    },
+    "special": {
+      "file": "special.fbx",
+      "kind": "attack",
+      "start": 161,
+      "impact": 183,
+      "end": 205,
+      "frames": [
+        12,
+        6,
+        30
+      ]
+    },
+    "block": {
+      "file": "block.fbx",
+      "kind": "hold",
+      "start": 13,
+      "end": 31
+    },
+    "dodge": {
+      "file": "dodge.fbx",
+      "kind": "once",
+      "start": 1,
+      "end": 55
+    },
+    "hit_high": {
+      "file": "hit_high.fbx",
+      "kind": "once",
+      "start": 1,
+      "end": 37
+    },
+    "hit_mid": {
+      "file": "hit_mid.fbx",
+      "kind": "once",
+      "start": 1,
+      "end": 43
+    },
+    "knockdown": {
+      "file": "knockdown.fbx",
+      "kind": "once",
+      "start": 1,
+      "end": 85
+    },
+    "victory": {
+      "file": "victory.fbx",
+      "kind": "once",
+      "start": 61,
+      "end": 133
+    },
+    "defeat": {
+      "file": "defeat.fbx",
+      "kind": "once",
+      "start": 61,
+      "end": 151
+    }
   }
 }

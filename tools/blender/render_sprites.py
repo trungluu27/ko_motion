@@ -13,7 +13,7 @@ import sys
 import time
 
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, ROOT)
@@ -166,6 +166,12 @@ def normalize_height(arm: bpy.types.Object, meshes: list[bpy.types.Object]) -> N
     arm.location.z -= min(zs)
 
 
+def body_yaw(arm: bpy.types.Object) -> float:
+    """Heading of the hips (left-to-right leg axis) in the ground plane."""
+    v = (arm.matrix_world @ arm.pose.bones["mixamorig:LeftUpLeg"].head) - (arm.matrix_world @ arm.pose.bones["mixamorig:RightUpLeg"].head)
+    return math.atan2(v.y, v.x)
+
+
 def hips_world(arm: bpy.types.Object) -> Vector:
     return arm.matrix_world @ arm.pose.bones[HIPS].head
 
@@ -204,12 +210,25 @@ def render_fighter(name: str, config: dict, raw: str, out: str, only_clips: set[
     setup_camera_and_lights()
     out_dir = os.path.join(out, name)
     os.makedirs(out_dir, exist_ok=True)
+    # clips marked "align" are turned so their first frame faces like the idle stance (some Mixamo clips rotate the body)
+    base_matrix = arm.matrix_world.copy()
+    idle = config["clips"]["idle"]
+    assign_action(arm, load_action(os.path.join(raw, "anims", idle["file"])))
+    bpy.context.scene.frame_set(idle["start"])
+    bpy.context.view_layer.update()
+    ref_yaw = body_yaw(arm)
     for clip, spec in config["clips"].items():
         if only_clips and clip not in only_clips:
             continue
         t0 = time.time()
         action = load_action(os.path.join(raw, "anims", spec["file"]))
         assign_action(arm, action)
+        arm.matrix_world = base_matrix
+        bpy.context.scene.frame_set(spec["start"])
+        bpy.context.view_layer.update()
+        if spec.get("align"):
+            arm.matrix_world = Matrix.Rotation(ref_yaw - body_yaw(arm), 4, "Z") @ base_matrix
+        bpy.context.view_layer.update()
         if scan:
             last = int(action.frame_range[1])
             scan_dir = os.path.join(out, "_scan", name)
