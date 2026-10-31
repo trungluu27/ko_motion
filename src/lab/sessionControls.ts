@@ -4,7 +4,7 @@ import { type Session, SessionFormatError, parseSession, serializeSession } from
 import { SessionRecorder } from '../motion/session/recorder';
 import { replaySession } from '../motion/session/replay';
 import { VideoRecorder, downloadBlob, recordingFilename, timestamp } from '../recording/videoRecorder';
-import { DEFAULT_SCRIPT, GuidedCapture } from './guidedCapture';
+import { type CaptureStep, DEFAULT_SCRIPT, GuidedCapture, QUICK_SCRIPT } from './guidedCapture';
 import { LAB_W, type LabApp } from './labApp';
 
 const sessionFilename = (prefix: string) => `${prefix}-${timestamp(new Date())}.json`;
@@ -27,7 +27,8 @@ export function installSessionControls(app: LabApp): void {
 
   const recBtn = button(app, '⏺ Record video', 'Quay video canvas (phím R)');
   const sessionBtn = button(app, '💾 Ghi phiên', 'Ghi landmark ra file JSON');
-  const guidedBtn = button(app, '🎯 Guided capture', 'Thu dữ liệu có nhãn theo kịch bản (phím N để bỏ qua bước)');
+  const quickBtn = button(app, '⚡ Quick capture', 'Thu nhanh ~1 phút: đấm trái, đấm phải, block, thủ thế (phím N để bỏ qua bước)');
+  const guidedBtn = button(app, '🎯 Guided capture', 'Thu đầy đủ ~7 phút mọi động tác (phím N để bỏ qua bước)');
   const replayBtn = button(app, '▶ Phát lại', 'Chọn hoặc kéo thả file phiên .json');
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
@@ -95,8 +96,9 @@ export function installSessionControls(app: LabApp): void {
   const finishGuided = (save: boolean) => {
     guided = null;
     guidedPrompt = undefined;
-    guidedBtn.classList.remove('active');
+    for (const b of [guidedBtn, quickBtn]) b.classList.remove('active');
     guidedBtn.textContent = '🎯 Guided capture';
+    quickBtn.textContent = '⚡ Quick capture';
     if (save) saveSession('guided');
     else recorder.stop();
   };
@@ -106,19 +108,21 @@ export function installSessionControls(app: LabApp): void {
     const secs = Math.ceil(u.remainingMs / 1000);
     guidedPrompt = u.phase === 'rest' ? `Chuẩn bị: ${u.step!.prompt} (${secs})` : `${u.step!.prompt} — còn ${secs}s`;
   };
-  guidedBtn.onclick = () => {
+  const startGuided = (script: CaptureStep[], btn: HTMLButtonElement) => {
     if (guided) return finishGuided(false);
     if (!app.currentCalibration) {
-      app.showMessage('Hãy bấm 🎯 Calibrate trước khi chạy guided capture.');
+      app.showMessage('Hãy bấm 🎯 Calibrate trước khi thu dữ liệu.');
       return;
     }
     if (recorder.recording) return;
     startSession();
-    guided = new GuidedCapture(DEFAULT_SCRIPT);
+    guided = new GuidedCapture(script);
     guided.start(performance.now());
-    guidedBtn.classList.add('active');
-    guidedBtn.textContent = '⏹ Huỷ guided';
+    btn.classList.add('active');
+    btn.textContent = '⏹ Huỷ';
   };
+  guidedBtn.onclick = () => startGuided(DEFAULT_SCRIPT, guidedBtn);
+  quickBtn.onclick = () => startGuided(QUICK_SCRIPT, quickBtn);
   app.prompt = () => guidedPrompt;
 
   app.frameListeners.push((frame) => {

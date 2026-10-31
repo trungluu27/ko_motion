@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { type CaptureStep, DEFAULT_SCRIPT, GuidedCapture } from '../../src/lab/guidedCapture';
+import { type CaptureStep, DEFAULT_SCRIPT, GuidedCapture, QUICK_SCRIPT } from '../../src/lab/guidedCapture';
 
 const script: CaptureStep[] = [
   { action: 'punch_l', prompt: 'A', durationMs: 1000, expectedCount: 3 },
@@ -39,4 +39,11 @@ describe('GuidedCapture', () => {
     expect(DEFAULT_SCRIPT.find((s) => s.action === 'kick_r')).toMatchObject({ durationMs: 25_000, expectedCount: 10 });
     expect(DEFAULT_SCRIPT.find((s) => s.action === 'crouch')).toMatchObject({ durationMs: 6_000 });
   });
+});
+
+test('quick script covers punches, block and a no-punch guard segment in about a minute', () => {
+  expect(QUICK_SCRIPT.map((s) => s.action)).toEqual(['punch_l', 'punch_r', 'block', 'idle']);
+  expect(QUICK_SCRIPT[0]).toMatchObject({ expectedCount: 10, durationMs: 15_000 });
+  const totalMs = QUICK_SCRIPT.reduce((a, s) => a + s.durationMs + 3000, 0);
+  expect(totalMs).toBeLessThanOrEqual(75_000);
 });

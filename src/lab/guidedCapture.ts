@@ -24,6 +24,14 @@ export const DEFAULT_SCRIPT: CaptureStep[] = [
   { action: 'idle', prompt: 'Di chuyển tự do, KHÔNG ra đòn', durationMs: 60_000 },
 ];
 
+/** ~1 minute: punches, block, and a guard segment without punches (false-positive check). */
+export const QUICK_SCRIPT: CaptureStep[] = [
+  { action: 'punch_l', prompt: 'Đấm TRÁI ×10', durationMs: 15_000, expectedCount: 10 },
+  { action: 'punch_r', prompt: 'Đấm PHẢI ×10', durationMs: 15_000, expectedCount: 10 },
+  { action: 'block', prompt: 'Giữ BLOCK: 2 tay che kín mặt', durationMs: 6_000 },
+  { action: 'idle', prompt: 'Thủ thế, nhún nhẹ, KHÔNG đấm', durationMs: 15_000 },
+];
+
 export type CaptureUpdate = {
   step: CaptureStep | null;
   phase: 'rest' | 'perform' | 'done';
