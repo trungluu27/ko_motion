@@ -15,7 +15,7 @@
     "setup": "tsx scripts/fetch-models.ts",
     "eval": "tsx scripts/eval.ts",
     "render:sprites": "tsx scripts/blender.ts tools/blender/render_sprites.py",
-    "render:stage": "tsx scripts/blender.ts tools/blender/build_stage.py",
+    "render:stage": "tsx scripts/blender.ts tools/blender/build_stage.py && .venv\\Scripts\\python tools/sprites/stage_post.py",
     "preview:sprites": ".venv\\Scripts\\python tools/sprites/preview.py"
   },
   "repository": {
