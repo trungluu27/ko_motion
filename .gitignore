@@ -8,3 +8,4 @@ public/models/*.task
 .DS_Store
 .superpowers/
 public/mediapipe/
+out/
