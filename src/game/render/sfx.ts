@@ -3,10 +3,27 @@ import type { SimEvent } from '../sim/types';
 /** Tiny WebAudio synth for combat sounds; the AudioContext is created on the first user gesture. */
 export class Sfx {
   private ctx: AudioContext | null = null;
+  private master: GainNode | null = null;
+  private recordDest: MediaStreamAudioDestinationNode | null = null;
 
   unlock(): void {
-    if (!this.ctx) this.ctx = new AudioContext();
+    if (!this.ctx) {
+      this.ctx = new AudioContext();
+      this.master = this.ctx.createGain();
+      this.master.connect(this.ctx.destination);
+    }
     if (this.ctx.state === 'suspended') void this.ctx.resume();
+  }
+
+  /** Audio of every sound effect, for recording alongside the canvas. */
+  recordingStream(): MediaStream | null {
+    this.unlock();
+    if (!this.ctx || !this.master) return null;
+    if (!this.recordDest) {
+      this.recordDest = this.ctx.createMediaStreamDestination();
+      this.master.connect(this.recordDest);
+    }
+    return this.recordDest.stream;
   }
 
   private noise(durMs: number, filterHz: number, gain: number): void {
@@ -23,7 +40,7 @@ export class Sfx {
     filter.frequency.value = filterHz;
     const g = ctx.createGain();
     g.gain.value = gain;
-    src.connect(filter).connect(g).connect(ctx.destination);
+    src.connect(filter).connect(g).connect(this.master ?? ctx.destination);
     src.start();
   }
 
@@ -38,7 +55,7 @@ export class Sfx {
     const g = ctx.createGain();
     g.gain.setValueAtTime(gain, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + durMs / 1000);
-    o.connect(g).connect(ctx.destination);
+    o.connect(g).connect(this.master ?? ctx.destination);
     o.start(t);
     o.stop(t + durMs / 1000);
   }

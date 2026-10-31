@@ -20,9 +20,10 @@ import { NPC_TELEGRAPH } from '../sim/constants';
 import { createMatch, stepMatch } from '../sim/match';
 import type { Match, TickInput } from '../sim/types';
 import { TrackingPause } from '../trackingPause';
+import { VideoRecorder, downloadBlob, recordingFilename } from '../../recording/videoRecorder';
 import { ActionLabelTimer } from '../../view/webcamPanel';
 
-const GAME_KEYS = new Set(['KeyA', 'KeyD', 'KeyS', 'KeyW', 'KeyJ', 'KeyK', 'KeyU', 'KeyI', 'Space', 'KeyQ', 'KeyE', 'F3']);
+const GAME_KEYS = new Set(['KeyP', 'KeyA', 'KeyD', 'KeyS', 'KeyW', 'KeyJ', 'KeyK', 'KeyU', 'KeyI', 'Space', 'KeyQ', 'KeyE', 'F3']);
 type Opponent = Difficulty | 'dummy';
 const OPPONENT_KEYS: Record<string, Opponent> = { Digit1: 'easy', Digit2: 'normal', Digit3: 'hard', Digit0: 'dummy' };
 const OPPONENT_LABEL: Record<Opponent, string> = { easy: 'AI Easy', normal: 'AI Normal', hard: 'AI Hard', dummy: 'bao cát' };
@@ -59,6 +60,8 @@ export class FightScene extends Phaser.Scene {
   private showPerf = false;
   private notice: string | null = null;
   private noticeUntil = 0;
+  private recorder = new VideoRecorder();
+  private recButton!: Phaser.GameObjects.Text;
 
   constructor() {
     super('fight');
@@ -88,6 +91,16 @@ export class FightScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(60);
     this.perf = this.add.text(12, CANVAS_H - 52, '', { fontFamily: 'ui-monospace, monospace', fontSize: '14px', color: '#a3e635' }).setDepth(61);
+    this.recButton = this.add
+      .text(0, 96, '', { fontFamily: font, fontSize: '16px', fontStyle: '700', color: '#f8fafc', backgroundColor: '#1e293b', padding: { x: 10, y: 4 } })
+      .setOrigin(0.5)
+      .setDepth(62)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => void this.toggleRecording());
+    this.recButton.setVisible(VideoRecorder.isAvailable());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      if (this.recorder.recording) void this.toggleRecording();
+    });
     this.noticeUntil = this.notice ? performance.now() + 6000 : 0;
     this.applyLayout();
     this.restart();
@@ -106,6 +119,7 @@ export class FightScene extends Phaser.Scene {
       if (e.code === 'KeyC') this.toggleControl();
       if (e.code === 'KeyV') this.cycleView();
       if (e.code === 'F3') this.showPerf = !this.showPerf;
+      if (e.code === 'KeyP' && VideoRecorder.isAvailable()) void this.toggleRecording();
       const opponent = OPPONENT_KEYS[e.code];
       if (opponent) {
         this.opponent = opponent;
@@ -140,6 +154,20 @@ export class FightScene extends Phaser.Scene {
     });
   }
 
+  /** Records the whole game canvas (webcam + fight) with game sound to a WebM download. */
+  private async toggleRecording(): Promise<void> {
+    if (this.recorder.recording) {
+      const blob = await this.recorder.stop();
+      downloadBlob(blob, recordingFilename(new Date()));
+      return;
+    }
+    try {
+      this.recorder.start(this.game.canvas, this.sfx.recordingStream() ?? undefined);
+    } catch (e) {
+      this.showNotice(`Không quay được video: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
   private toggleControl(): void {
     if (this.control === 'keyboard') {
       this.scene.start('calibration');
@@ -164,6 +192,7 @@ export class FightScene extends Phaser.Scene {
     this.drawStage();
     const { arena } = this.layout;
     this.info.setX(arena.x + arena.w / 2);
+    this.recButton.setX(arena.x + arena.w / 2);
     this.overlay.setX(arena.x + arena.w / 2);
   }
 
@@ -254,6 +283,15 @@ export class FightScene extends Phaser.Scene {
       pause.countdown !== null ? String(pause.countdown) : pause.paused ? 'Bước vào lại khung hình' : noticeOn ? this.notice ?? '' : '',
     );
     this.overlay.setFontSize(pause.countdown !== null ? 120 : noticeOn && !pause.paused ? 22 : 44);
+
+    if (this.recorder.recording) {
+      const s = Math.floor(this.recorder.elapsedMs(now) / 1000);
+      this.recButton.setText(`● REC ${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}  (P dừng)`);
+      this.recButton.setColor('#f87171');
+    } else {
+      this.recButton.setText('⏺ Quay video (P)');
+      this.recButton.setColor('#f8fafc');
+    }
 
     this.perf.setVisible(this.showPerf);
     if (this.showPerf) {
