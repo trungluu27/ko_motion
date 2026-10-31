@@ -4,6 +4,8 @@ export type PoseFrame = {
   frameId: number;
   /** ms, capture time of the video frame (performance.now timeline) */
   t: number;
+  /** image width / height (x is normalized by width, y by height); 1 when unknown */
+  aspect?: number;
   /** 33 landmarks, normalized image coordinates (0..1) */
   image: Landmark[];
   /** 33 landmarks, meters, origin at hip center */

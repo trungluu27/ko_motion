@@ -1,4 +1,4 @@
-import type { LR, PoseFrame, TrackingStatus } from '../shared/types';
+import type { Landmark, LR, PoseFrame, TrackingStatus } from '../shared/types';
 import { dist, dist2d, median, mid } from '../shared/math';
 import type { MotionConfig } from './config';
 import { LM } from './landmarks';
@@ -22,9 +22,18 @@ export type CalibrationProgress = {
   calibration?: Calibration;
 };
 
+/**
+ * Image landmarks in square units: x is rescaled by the frame aspect (width / height) so that x and y
+ * share the image-height scale, making angles and distances independent of the camera's aspect ratio.
+ */
+export function squareImage(f: PoseFrame): Landmark[] {
+  const a = f.aspect ?? 1;
+  return a === 1 ? f.image : f.image.map((l) => ({ ...l, x: l.x * a }));
+}
+
 /** Instantaneous body measurements of one frame, in the same units as Calibration. */
 export function measureBody(f: PoseFrame): Calibration {
-  const im = f.image;
+  const im = squareImage(f);
   const w = f.world;
   const hip = mid(im[LM.L_HIP], im[LM.R_HIP]);
   const shoulders = mid(im[LM.L_SHOULDER], im[LM.R_SHOULDER]);

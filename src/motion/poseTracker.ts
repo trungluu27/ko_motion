@@ -8,12 +8,13 @@ export function toPoseFrame(
   result: { landmarks: RawLandmark[][]; worldLandmarks: RawLandmark[][] },
   frameId: number,
   t: number,
+  aspect = 1,
 ): PoseFrame | null {
   const image = result.landmarks[0];
   const world = result.worldLandmarks[0];
   if (!image || !world) return null;
   const copy = (l: RawLandmark): Landmark => ({ x: l.x, y: l.y, z: l.z, visibility: l.visibility ?? 0 });
-  return { frameId, t, image: image.map(copy), world: world.map(copy) };
+  return { frameId, t, aspect, image: image.map(copy), world: world.map(copy) };
 }
 
 export type PoseModel = 'full' | 'lite';
@@ -63,7 +64,8 @@ export class PoseTracker {
         this.lastTs = ts;
         const start = performance.now();
         const result = this.landmarker.detectForVideo(video, ts);
-        onFrame(toPoseFrame(result, this.frameId++, t), performance.now() - start);
+        const aspect = video.videoHeight ? video.videoWidth / video.videoHeight : 1;
+        onFrame(toPoseFrame(result, this.frameId++, t, aspect), performance.now() - start);
       } finally {
         this.busy = false;
       }

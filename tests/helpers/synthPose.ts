@@ -27,6 +27,8 @@ export type SynthParams = {
   liftR: number;
   visibility: number;
   hidden?: number[];
+  /** camera width / height; MediaPipe normalizes x by width and y by height */
+  aspect?: number;
 };
 
 export const BODY = {
@@ -139,13 +141,14 @@ export function synthFrame(partial: Partial<SynthParams>, t: number, frameId = 0
   const hipY = p.hipY - p.jump * p.scale + p.hipDrop * p.scale;
   const hidden = new Set(p.hidden ?? []);
   const vis = (i: number) => (hidden.has(i) ? 0.1 : p.visibility);
+  const aspect = p.aspect ?? 1;
   const image: Landmark[] = world.map((w, i) => ({
-    x: p.hipX + w.x * p.scale,
+    x: p.hipX + (w.x * p.scale) / aspect,
     y: hipY + w.y * p.scale,
     z: w.z * p.scale,
     visibility: vis(i),
   }));
-  return { frameId, t, image, world: world.map((w, i) => ({ ...w, visibility: vis(i) })) };
+  return { frameId, t, aspect, image, world: world.map((w, i) => ({ ...w, visibility: vis(i) })) };
 }
 
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
@@ -165,6 +168,7 @@ function lerpParams(a: SynthParams, b: SynthParams, k: number): SynthParams {
     liftR: lerp(a.liftR, b.liftR, k),
     visibility: lerp(a.visibility, b.visibility, k),
     hidden: a.hidden,
+    aspect: a.aspect,
   };
 }
 

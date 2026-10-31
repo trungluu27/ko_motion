@@ -67,3 +67,26 @@ describe('FeatureExtractor', () => {
     expect(fs[1].armExtVel.l).toBe(0);
   });
 });
+
+describe('FeatureExtractor on a 16:9 camera (x normalized by width, y by height)', () => {
+  const aspect = 16 / 9;
+  const runWide = (p: Parameters<typeof synthFrame>[0]) => {
+    const fx = new FeatureExtractor(defaultCalibration({ aspect }), DEFAULT_CONFIG);
+    return fx.update(synthFrame({ ...p, aspect }, 0));
+  };
+
+  test('lean angle is measured in real degrees', () => {
+    expect(runWide({ lean: 20 }).lean).toBeCloseTo(20, 0);
+  });
+
+  test('wrist-to-nose distance matches the square-pixel measurement', () => {
+    const cover = { armL: { ext: 0, dir: 'cover' as const }, armR: { ext: 0, dir: 'cover' as const } };
+    expect(runWide(cover).wristNose.l).toBeCloseTo(one(cover).wristNose.l, 6);
+  });
+
+  test('lateral shift and torso scale are aspect independent', () => {
+    const f = runWide({ hipX: 0.5 - (0.5 * 0.38 * 0.25) / aspect });
+    expect(f.hipDx).toBeCloseTo(0.5, 2);
+    expect(f.torsoScale).toBeCloseTo(1, 6);
+  });
+});

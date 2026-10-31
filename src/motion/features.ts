@@ -1,6 +1,6 @@
 import type { LR, PoseFrame, Side } from '../shared/types';
 import { angleDeg, dist, dist2d, mid } from '../shared/math';
-import type { Calibration } from './calibration';
+import { type Calibration, squareImage } from './calibration';
 import type { MotionConfig } from './config';
 import { LM } from './landmarks';
 
@@ -51,7 +51,7 @@ export class FeatureExtractor {
 
   update(f: PoseFrame): Features {
     const { cal } = this;
-    const im = f.image;
+    const im = squareImage(f);
     const w = f.world;
     const last = this.history[this.history.length - 1];
     if (last && f.t - last.t > this.cfg.tracking.gapResetMs) this.history = [];
