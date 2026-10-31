@@ -10,8 +10,9 @@ import { Hud } from '../render/hud';
 import { hudModel } from '../render/hudModel';
 import { poseFor } from '../render/pose';
 import { Sfx } from '../render/sfx';
-import { type ArenaView, OPPONENT_COLOR, PLAYER_COLOR, drawFighter } from '../render/stickFighter';
-import { ARENA_W, NPC_TELEGRAPH } from '../sim/constants';
+import { type ArenaView, arenaView, layoutFor } from '../layout';
+import { OPPONENT_COLOR, PLAYER_COLOR, drawFighter } from '../render/stickFighter';
+import { NPC_TELEGRAPH } from '../sim/constants';
 import { createMatch, stepMatch } from '../sim/match';
 import type { Match, TickInput } from '../sim/types';
 
@@ -36,7 +37,7 @@ export class FightScene extends Phaser.Scene {
   private hud!: Hud;
   private sfx = new Sfx();
   private info!: Phaser.GameObjects.Text;
-  private readonly view: ArenaView = { toScreen: (x) => 40 + (x / ARENA_W) * (W - 80), groundY: 620 };
+  private view: ArenaView = arenaView(layoutFor('game').arena);
 
   constructor() {
     super('fight');
@@ -128,6 +129,6 @@ export class FightScene extends Phaser.Scene {
     this.match.fighters.forEach((f, i) => {
       drawFighter(this.fighters, f, poseFor(f), i === 0 ? PLAYER_COLOR : OPPONENT_COLOR, this.view);
     });
-    this.hud.draw(hudModel(this.match));
+    this.hud.draw(hudModel(this.match), this.view.region);
   }
 }

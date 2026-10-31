@@ -1,8 +1,8 @@
 import type Phaser from 'phaser';
+import type { Region } from '../layout';
 import type { HudModel } from './hudModel';
 
-const W = 1280;
-const BAR_W = 520;
+const MARGIN = 24;
 
 /** Health, stamina and special bars, the round clock, and the result banner. */
 export class Hud {
@@ -15,15 +15,15 @@ export class Hud {
     const font = 'system-ui, sans-serif';
     this.g = scene.add.graphics().setDepth(40);
     this.clock = scene.add
-      .text(W / 2, 44, '99', { fontFamily: font, fontSize: '44px', fontStyle: '900', color: '#f8fafc' })
+      .text(0, 44, '99', { fontFamily: font, fontSize: '44px', fontStyle: '900', color: '#f8fafc' })
       .setOrigin(0.5)
       .setDepth(41);
     this.banner = scene.add
-      .text(W / 2, 330, '', { fontFamily: font, fontSize: '88px', fontStyle: '900', color: '#f8fafc', stroke: '#020617', strokeThickness: 10 })
+      .text(0, 330, '', { fontFamily: font, fontSize: '88px', fontStyle: '900', color: '#f8fafc', stroke: '#020617', strokeThickness: 10 })
       .setOrigin(0.5)
       .setDepth(50);
     this.hint = scene.add
-      .text(W / 2, 410, 'Nhấn R để đấu lại', { fontFamily: font, fontSize: '26px', color: '#cbd5e1' })
+      .text(0, 410, 'Nhấn R để đấu lại', { fontFamily: font, fontSize: '26px', color: '#cbd5e1' })
       .setOrigin(0.5)
       .setDepth(50);
   }
@@ -38,16 +38,22 @@ export class Hud {
     this.g.strokeRect(x, y, w, h);
   }
 
-  draw(h: HudModel): void {
+  /** Draws the HUD across the top of the arena region. */
+  draw(h: HudModel, area: Region): void {
     this.g.clear();
+    const cx = area.x + area.w / 2;
+    const barW = area.w * 0.4;
+    const small = barW * 0.6;
+    const left = area.x + MARGIN;
+    const right = area.x + area.w - MARGIN;
     const hpColor = (v: number) => (v > 0.5 ? 0x22c55e : v > 0.25 ? 0xfacc15 : 0xef4444);
     for (const i of [0, 1] as const) {
-      const right = i === 1;
-      const small = BAR_W * 0.6;
-      this.bar(right ? W - 40 - BAR_W : 40, 22, BAR_W, 26, h.hp[i], hpColor(h.hp[i]), right);
-      this.bar(right ? W - 40 - small : 40, 54, small, 10, h.stamina[i], 0x4ade80, right);
-      this.bar(right ? W - 40 - small : 40, 68, small, 10, h.special[i], h.special[i] >= 1 ? 0xe879f9 : 0x7c3aed, right);
+      const r = i === 1;
+      this.bar(r ? right - barW : left, 22, barW, 26, h.hp[i], hpColor(h.hp[i]), r);
+      this.bar(r ? right - small : left, 54, small, 10, h.stamina[i], 0x4ade80, r);
+      this.bar(r ? right - small : left, 68, small, 10, h.special[i], h.special[i] >= 1 ? 0xe879f9 : 0x7c3aed, r);
     }
+    for (const t of [this.clock, this.banner, this.hint]) t.setX(cx);
     this.clock.setText(String(h.seconds));
     this.banner.setText(h.result ?? '');
     this.banner.setColor(h.result === 'YOU WIN' ? '#4ade80' : h.result === 'YOU LOSE' ? '#f87171' : '#f8fafc');

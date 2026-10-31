@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import type { ComboName, Match, SimEvent } from '../sim/types';
-import { type ArenaView, strikePoint } from './stickFighter';
+import type { ArenaView } from '../layout';
+import { strikePoint } from './stickFighter';
 
 const SPARK_KEY = 'spark';
 
@@ -17,7 +18,7 @@ export class Effects {
 
   constructor(
     private readonly scene: Phaser.Scene,
-    private readonly view: ArenaView,
+    public view: ArenaView,
   ) {
     if (!scene.textures.exists(SPARK_KEY)) {
       const g = scene.make.graphics({ x: 0, y: 0 }, false);
@@ -55,7 +56,7 @@ export class Effects {
   handle(e: SimEvent, m: Match): void {
     const atk = m.fighters[e.fighter];
     const def = m.fighters[1 - e.fighter];
-    const headY = this.view.groundY - 250;
+    const headY = this.view.groundY - 250 * this.view.bodyScale;
     const xOf = (i: number) => this.view.toScreen(m.fighters[i].x);
     switch (e.type) {
       case 'hit': {
@@ -86,7 +87,7 @@ export class Effects {
         break;
       case 'ko':
         this.scene.cameras.main.shake(400, 0.01);
-        this.popup('K.O.', this.scene.scale.width / 2, 300, '#f43f5e', 96);
+        this.popup('K.O.', this.view.region.x + this.view.region.w / 2, 300, '#f43f5e', 96);
         break;
       default:
         break;
