@@ -127,7 +127,7 @@ Mỗi recognizer là một state machine nhỏ, ngưỡng nằm trong `config.ts
 
 | Động tác | Loại | Quy tắc kích hoạt (ban đầu) | Điều kiện reset |
 |---|---|---|---|
-| Punch L/R | event | `armExt` vượt 0.80 **và** `armExtVel` > 2.5/s **và** `elbowAngle` > 100° (≈ độ duỗi 0.78; 140° ban đầu mâu thuẫn với 0.80), cổ tay nằm giữa giữa-thân và trên đỉnh đầu; không đang block | `armExt` < 0.55 (thu tay), refractory 180 ms |
+| Punch L/R | event | `armExt` vượt 0.80 **và** `armExtVel` > 2.5/s **và** `elbowAngle` > 100° (≈ độ duỗi 0.78; 140° ban đầu mâu thuẫn với 0.80), cổ tay nằm giữa giữa-thân và trên đỉnh đầu | `armExt` < 0.55 (thu tay), refractory 180 ms |
 | Kick L/R | event | `ankleLift` của một chân > 0.35, chân kia vẫn gần sàn (< 0.10), vận tốc nâng > 1.5/s | mắt cá về < 0.15, refractory 350 ms |
 | Jump | event | cả hai mắt cá **và** tâm hông nâng > 0.12 × torso trong ≤ 300 ms | tiếp đất (hông về < 0.05), refractory 500 ms |
 | Block | state | cả hai cổ tay cao hơn vai, cách mũi < 0.7 × vai, giữ ≥ 100 ms | điều kiện mất ≥ 120 ms (hysteresis) |
@@ -135,7 +135,7 @@ Mỗi recognizer là một state machine nhỏ, ngưỡng nằm trong `config.ts
 | Dodge L/R | state | `lean` > 15° về một phía **và** \|`hipDx`\| < 0.30 (hông giữ yên, chỉ thân nghiêng) | `lean` < 8° |
 | Move L/R | state | \|`hipDx`\| > 0.45 (kiểu joystick: lệch khỏi vùng trung tâm thì đi liên tục) | \|`hipDx`\| < 0.30 (hysteresis) |
 
-**Xử lý xung đột:** Jump chặn Kick trong cùng cửa sổ thời gian. Block chặn Punch. Đang Crouch thì không phát Jump. Double punch không phải recognizer riêng: hai event punch_l và punch_r trong vòng 250 ms sẽ do tầng combo của game diễn giải.
+**Xử lý xung đột:** Jump chặn Kick trong cùng cửa sổ thời gian. **Punch thắng Block**: block chỉ tính khi cả hai tay đang co (độ duỗi < 0.55); một tay duỗi ra là block tắt ngay. (Bản đầu để Block chặn Punch, nhưng như vậy tư thế thủ thế cao làm mất mọi cú đấm.) Đang Crouch thì không phát Jump. Double punch không phải recognizer riêng: hai event punch_l và punch_r trong vòng 250 ms sẽ do tầng combo của game diễn giải.
 
 `confidence` = tích của (visibility trung bình các khớp liên quan) và (mức vượt ngưỡng, chuẩn hoá về 0..1). Event có confidence < 0.5 bị bỏ.
 

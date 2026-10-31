@@ -48,13 +48,20 @@ describe('MotionEngine', () => {
     expect(out.tracking).toBe('ok');
   });
 
-  test('punches are suppressed while blocking', () => {
+  test('a punch thrown from a high guard is recognized and drops the block', () => {
     const outs = feedAll(calibratedEngine(), [
       ...seq([{ t: 0, p: cover }, { t: 300, p: cover }]),
-      ...seq([{ t: 333, p: { ...cover, armL: fwd(0.45) } }, { t: 433, p: { ...cover, armL: fwd(0.95) } }, { t: 700, p: { ...cover, armL: fwd(0.95) } }]),
+      ...seq([
+        { t: 333, p: { ...cover, armR: fwd(0.45) } },
+        { t: 433, p: { ...cover, armR: fwd(0.95) } },
+        { t: 583, p: { ...cover, armR: fwd(0.45) } },
+        { t: 800, p: { ...cover, armR: fwd(0.45) } },
+      ]),
     ]);
     expect(outs.some((o) => o.state.block)).toBe(true);
-    expect(events(outs)).toHaveLength(0);
+    const hit = outs.find((o) => o.events.length);
+    expect(hit?.events.map((e) => e.action)).toEqual(['punch_r']);
+    expect(hit?.state.block).toBe(false);
   });
 
   test('standing up quickly from a crouch is not a jump', () => {

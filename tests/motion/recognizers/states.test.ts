@@ -27,6 +27,12 @@ describe('StateRecognizer', () => {
     expect(stateAt(rows, 466.7).block).toBe(false);
   });
 
+  test('block releases immediately when one arm extends out of the guard', () => {
+    const rows = run(500, (t) => (t < 300 ? cover : { ...cover, armR: { ext: 0.7, dir: 'forward' } }));
+    expect(stateAt(rows, 266.7).block).toBe(true);
+    expect(stateAt(rows, 300).block).toBe(false);
+  });
+
   test('crouch engages after holding a lowered hip for 120 ms', () => {
     const rows = run(400, () => ({ hipDrop: 0.15 }));
     expect(stateAt(rows, 66.7).crouch).toBe(false);

@@ -77,7 +77,6 @@ export class MotionEngine {
     ];
     const events = candidates.filter((e): e is ActionEvent => {
       if (!e || e.confidence < this.cfg.event.minConfidence) return false;
-      if (state.block && (e.action === 'punch_l' || e.action === 'punch_r')) return false;
       if (state.crouch && e.action === 'jump') return false;
       return true;
     });
