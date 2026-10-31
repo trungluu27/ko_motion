@@ -18,10 +18,14 @@ import pandas as pd  # noqa: E402
 
 # Mirrors src/motion/config.ts DEFAULT_CONFIG trigger thresholds.
 THRESHOLDS: dict[str, float] = {
-    "armExt_l": 0.80,
-    "armExt_r": 0.80,
-    "armExtVel_l": 2.5,
-    "armExtVel_r": 2.5,
+    "elbowAngle_l": 130.0,
+    "elbowAngle_r": 130.0,
+    "reach2d_l": 0.5,
+    "reach2d_r": 0.5,
+    "armExt_l": 0.95,
+    "armExt_r": 0.95,
+    "wristNose_l": 0.55,
+    "wristNose_r": 0.55,
     "ankleLift_l": 0.35,
     "ankleLift_r": 0.35,
     "ankleLiftVel_l": 1.5,
@@ -31,7 +35,7 @@ THRESHOLDS: dict[str, float] = {
     "hipDy": 0.25,
 }
 
-DEFAULT_COLS = ["armExt_l", "armExt_r", "armExtVel_l", "armExtVel_r", "ankleLift_l", "ankleLift_r", "lean", "hipDx", "hipDy"]
+DEFAULT_COLS = ["elbowAngle_l", "elbowAngle_r", "reach2d_l", "reach2d_r", "wristNose_l", "wristNose_r", "ankleLift_l", "ankleLift_r", "lean", "hipDx", "hipDy"]
 
 ACTION_COLORS = {
     "punch_l": "tab:blue", "punch_r": "tab:cyan", "kick_l": "tab:orange", "kick_r": "tab:red", "jump": "tab:green",

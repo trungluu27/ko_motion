@@ -128,10 +128,10 @@ Mỗi recognizer là một state machine nhỏ, ngưỡng nằm trong `config.ts
 
 | Động tác | Loại | Quy tắc kích hoạt (ban đầu) | Điều kiện reset |
 |---|---|---|---|
-| Punch L/R | event | `elbowAngle` > 130° **và** góc khuỷu tăng ≥ 30° so với mức thấp nhất trong 400 ms trước đó **và** (`reach2d` > 0.5 **hoặc** `armExt` > 0.85), cổ tay nằm giữa giữa-thân và trên đỉnh đầu. Không dùng ngưỡng tốc độ tuyệt đối: dữ liệu thật ở 16–30 FPS chỉ đo được 0.7–1.4/s | `elbowAngle` < 115° (thu tay), refractory 180 ms |
+| Punch L/R | event | `elbowAngle` > 130° **và** góc khuỷu tăng ≥ 30° so với mức thấp nhất trong 400 ms trước đó **và** (`reach2d` > 0.5 **hoặc** `armExt` > 0.95; ngưỡng 3D 0.85 gây nhầm ở tay trước khi thân xoay), cổ tay nằm giữa giữa-thân và trên đỉnh đầu. Không dùng ngưỡng tốc độ tuyệt đối: dữ liệu thật ở 16–30 FPS chỉ đo được 0.7–1.4/s | `elbowAngle` < 115° (thu tay), refractory 180 ms |
 | Kick L/R | event | `ankleLift` của một chân > 0.35, chân kia vẫn gần sàn (< 0.10), vận tốc nâng > 1.5/s | mắt cá về < 0.15, refractory 350 ms |
 | Jump | event | cả hai mắt cá **và** tâm hông nâng > 0.12 × torso trong ≤ 300 ms | tiếp đất (hông về < 0.05), refractory 500 ms |
-| Block | state | cả hai cổ tay cao hơn vai, **cả hai** cách mũi < 0.5 × vai, không tay nào đang duỗi (khuỷu < 120°), giữ ≥ 150 ms | điều kiện mất ≥ 120 ms; tay duỗi (khuỷu > 120°) thì tắt ngay |
+| Block | state | cả hai cổ tay cao hơn vai, **cả hai** cách mũi < 0.55 × vai và **tổng** hai khoảng cách < 0.7 × vai (thủ thế sát mặt có tổng ≈ 0.76), không tay nào đang duỗi (khuỷu < 120°), giữ ≥ 150 ms | điều kiện mất ≥ 120 ms; tay duỗi (khuỷu > 120°) thì tắt ngay |
 | Crouch | state | `hipDy` hạ > 0.25 × torso, giữ ≥ 120 ms | `hipDy` < 0.15 |
 | Dodge L/R | state | `lean` > 15° về một phía **và** \|`hipDx`\| < 0.30 (hông giữ yên, chỉ thân nghiêng) | `lean` < 8° |
 | Move L/R | state | \|`hipDx`\| > 0.45 (kiểu joystick: lệch khỏi vùng trung tâm thì đi liên tục) | \|`hipDx`\| < 0.30 (hysteresis) |
@@ -281,8 +281,10 @@ Phiên `fixtures/sessions/2026-10-31-side-quick.json.gz`: đứng nghiêng, vai 
 
 | Hạng mục | Trước khi sửa | Sau khi sửa (mục tiêu) |
 |---|---|---|
-| punch_l precision / recall | 1.00 / 0.70 | ≥ 0.90 / ≥ 0.85 |
-| punch_r precision / recall | – / 0.00 | ≥ 0.90 / ≥ 0.85 |
-| Block (frame trong cửa sổ block) | 0 / 84 | ≥ 70 / 84, ≤ 10 frame nhầm khi thủ thế |
+| punch_l precision / recall | 1.00 / 0.70 | **1.00 / 1.00** (10/10) |
+| punch_r precision / recall | – / 0.00 | **1.00 / 1.00** (12/12) |
+| Block (frame trong cửa sổ block) | 0 / 84 | **≥ 70 / 84**, ≤ 10 frame nhầm khi thủ thế (test hồi quy `tests/motion/realSessions.test.ts`) |
+
+Nhãn `punch_r` đã được chỉnh theo quỹ đạo cổ tay thô: 12 cú, gồm một cú đấm lúc đang chuẩn bị (19.5 s) và một cú thứ 11 (35.3 s). Phiên đứng thẳng cùng ngày chỉ nhận được 1 cú đấm, xác nhận kết luận ở mục 5.6.
 
 _(Các action còn lại và độ trễ: điền sau phiên guided đầy đủ.)_

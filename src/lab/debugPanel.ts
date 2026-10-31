@@ -26,8 +26,8 @@ export function pruneHistory(history: FeatureSample[], latestT: number, spanMs: 
 
 const c = DEFAULT_CONFIG;
 const SERIES: { key: SeriesKey; min: number; max: number; thresholds: number[] }[] = [
-  { key: 'armExt_l', min: 0.2, max: 1.05, thresholds: [c.punch.extOn, c.punch.extOff] },
-  { key: 'armExt_r', min: 0.2, max: 1.05, thresholds: [c.punch.extOn, c.punch.extOff] },
+  { key: 'armExt_l', min: 0.2, max: 1.05, thresholds: [c.punch.extOn] },
+  { key: 'armExt_r', min: 0.2, max: 1.05, thresholds: [c.punch.extOn] },
   { key: 'ankleLift_l', min: -0.1, max: 0.8, thresholds: [c.kick.liftOn] },
   { key: 'ankleLift_r', min: -0.1, max: 0.8, thresholds: [c.kick.liftOn] },
   { key: 'lean', min: -40, max: 40, thresholds: [c.dodge.leanOnDeg, -c.dodge.leanOnDeg] },

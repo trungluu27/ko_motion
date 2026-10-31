@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Ngưỡng nằm trong `src/motion/config.ts`, đúng giá trị spec 5.3: punch `elbowOnDeg 130, elbowRiseDeg 30, riseWindowMs 400, reachOn 0.5, extOn 0.85, elbowOffDeg 115, refractoryMs 180`; block `wristNoseMax 0.5, holdMs 150, releaseMs 120, armOutElbowDeg 120`.
+- Ngưỡng nằm trong `src/motion/config.ts`, đúng giá trị spec 5.3: punch `elbowOnDeg 130, elbowRiseDeg 30, riseWindowMs 400, reachOn 0.5, extOn 0.95, elbowOffDeg 115, refractoryMs 180`; block `wristNoseMax 0.55, wristNoseSumMax 0.7, holdMs 150, releaseMs 120, armOutElbowDeg 120`.
 - Không còn dùng `armExtVel` hay `extOff` cho punch.
 - Bằng chứng nghiệm thu: `npm run eval` trên phiên thật. Mục tiêu: punch_l và punch_r precision ≥ 0.90, recall ≥ 0.85.
 

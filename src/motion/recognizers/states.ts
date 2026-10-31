@@ -46,11 +46,13 @@ export class StateRecognizer {
   update(f: Features): ControlState {
     const { block: b, crouch: c, dodge: d, move: m } = this.cfg;
     // Punching wins over blocking: an arm extending out of the guard releases the block at once.
-    const armOut = f.armExt.l > this.cfg.punch.extOff || f.armExt.r > this.cfg.punch.extOff;
+    const armOut = f.elbowAngle.l > b.armOutElbowDeg || f.elbowAngle.r > b.armOutElbowDeg;
     if (armOut) this.block.reset();
     const guarding =
       !armOut &&
-      f.wristAboveShoulder.l && f.wristAboveShoulder.r && f.wristNose.l < b.wristNoseMax && f.wristNose.r < b.wristNoseMax;
+      f.wristAboveShoulder.l && f.wristAboveShoulder.r &&
+      f.wristNose.l < b.wristNoseMax && f.wristNose.r < b.wristNoseMax &&
+      f.wristNose.l + f.wristNose.r < b.wristNoseSumMax;
     const block = this.block.update(guarding, !guarding, f.t);
     const crouch = this.crouch.update(f.hipDy > c.dropOn, f.hipDy < c.dropOff, f.t);
 

@@ -19,18 +19,23 @@ function run(durationMs: number, at: (t: number) => Partial<SynthParams>): [numb
 const stateAt = (rows: [number, ControlState][], t: number) => rows.filter(([rt]) => rt <= t + 1e-6).pop()![1];
 
 describe('StateRecognizer', () => {
-  test('block engages after a 100 ms hold and releases 120 ms after hands drop', () => {
+  test('block engages after a 150 ms hold and releases 120 ms after hands drop', () => {
     const rows = run(600, (t) => (t < 300 ? cover : {}));
-    expect(stateAt(rows, 66.7).block).toBe(false);
-    expect(stateAt(rows, 133.3).block).toBe(true);
+    expect(stateAt(rows, 133.3).block).toBe(false);
+    expect(stateAt(rows, 166.7).block).toBe(true);
     expect(stateAt(rows, 366.7).block).toBe(true);
     expect(stateAt(rows, 466.7).block).toBe(false);
   });
 
   test('block releases immediately when one arm extends out of the guard', () => {
-    const rows = run(500, (t) => (t < 300 ? cover : { ...cover, armR: { ext: 0.7, dir: 'forward' } }));
+    const rows = run(500, (t) => (t < 300 ? cover : { ...cover, armR: { ext: 0.95, dir: 'forward' } }));
     expect(stateAt(rows, 266.7).block).toBe(true);
     expect(stateAt(rows, 300).block).toBe(false);
+  });
+
+  test('a normal guard with fists below the shoulders is not a block', () => {
+    const rows = run(500, () => ({}));
+    expect(rows.some(([, s]) => s.block)).toBe(false);
   });
 
   test('crouch engages after holding a lowered hip for 120 ms', () => {

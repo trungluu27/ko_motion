@@ -5,7 +5,8 @@ import type { ActionEvent, PoseFrame } from '../../../src/shared/types';
 import { type ArmPose, synthSequence } from '../../helpers/synthPose';
 import { featuresOf } from '../../helpers/pipeline';
 
-const fwd = (ext: number): ArmPose => ({ ext, dir: 'forward' });
+// official stance is sideways (~45°): a punch extends across the image
+const fwd = (ext: number): ArmPose => ({ ext, dir: 'side' });
 
 function events(frames: PoseFrame[]): ActionEvent[] {
   const l = new PunchRecognizer('l', DEFAULT_CONFIG);
@@ -39,8 +40,19 @@ describe('PunchRecognizer', () => {
   });
 
   test('a slow extension is not a punch', () => {
-    const ev = events(synthSequence([{ t: 0, p: { armL: fwd(0.45) } }, { t: 1500, p: { armL: fwd(0.95) } }]));
+    const ev = events(synthSequence([{ t: 0, p: { armL: fwd(0.45) } }, { t: 2000, p: { armL: fwd(0.95) } }]));
     expect(ev).toHaveLength(0);
+  });
+
+  test('a moderately fast sideways punch from the guard is recognized (real players at 16-30 FPS)', () => {
+    const side = (ext: number): ArmPose => ({ ext, dir: 'side' });
+    const ev = events(synthSequence([
+      { t: 0, p: { armR: side(0.45) } },
+      { t: 300, p: { armR: side(0.95) } },
+      { t: 600, p: { armR: side(0.45) } },
+      { t: 900, p: { armR: side(0.45) } },
+    ], 16));
+    expect(ev.map((e) => e.action)).toEqual(['punch_r']);
   });
 
   test('holding the arm extended does not repeat the punch', () => {

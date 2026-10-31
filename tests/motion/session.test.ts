@@ -5,11 +5,14 @@ import { replaySession } from '../../src/motion/session/replay';
 import { evaluate } from '../../src/motion/eval';
 import { type ArmPose, synthSequence } from '../helpers/synthPose';
 
-const fwd = (ext: number): ArmPose => ({ ext, dir: 'forward' });
+// official stance is sideways (~45°): a punch extends across the image
+const fwd = (ext: number): ArmPose => ({ ext, dir: 'side' });
+// real punches hold full extension for ~150-200 ms before retracting
 const jab = (t0: number) => [
   { t: t0, p: { armL: fwd(0.45) } },
   { t: t0 + 100, p: { armL: fwd(0.95) } },
-  { t: t0 + 250, p: { armL: fwd(0.45) } },
+  { t: t0 + 250, p: { armL: fwd(0.95) } },
+  { t: t0 + 400, p: { armL: fwd(0.45) } },
 ];
 
 function threeJabSession(): Session {
@@ -19,10 +22,10 @@ function threeJabSession(): Session {
     { t: 0, p: {} },
     { t: 2000, p: {} },
     ...jab(2200), ...jab(2700), ...jab(3200),
-    { t: 3800, p: { armL: fwd(0.45) } },
+    { t: 3900, p: { armL: fwd(0.45) } },
   ]);
   for (const f of frames) rec.addFrame(f);
-  rec.addLabel({ action: 'punch_l', tStart: 2100, tEnd: 3600, expectedCount: 3 });
+  rec.addLabel({ action: 'punch_l', tStart: 2100, tEnd: 3700, expectedCount: 3 });
   return rec.stop();
 }
 

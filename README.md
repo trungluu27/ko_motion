@@ -25,6 +25,9 @@ Các lệnh khác:
 
 ## Đặt camera và đứng
 
+- **Đứng nghiêng khoảng 45°** so với camera (ví dụ vai trái hướng về camera), giống tư thế võ sĩ. Đấm thẳng vào camera khi đứng đối diện gần như không đo được, vì webcam không thấy được chiều sâu.
+- **Calibrate ở đúng tư thế bạn sẽ chơi.** Đổi tư thế thì bấm Calibrate lại.
+- Block là **hai tay che kín mặt**, sát hơn tư thế thủ thế bình thường.
 - Camera cao khoảng ngang hông, nhìn thẳng. Đứng cách camera **2,5–3 m**, phải thấy cả đầu lẫn bàn chân.
 - Ánh sáng chiếu từ phía trước, tránh đứng ngược sáng cửa sổ.
 - Dọn sạch khoảng trống khoảng 2 × 2 m. Đi giày hoặc chân trần trên sàn không trơn.
@@ -38,10 +41,10 @@ Màn hình 1280×720 chia đôi: **trái** là webcam lật gương, skeleton v�
 
 | Động tác thật | Nhận diện |
 |---|---|
-| Đấm nhanh tay trái / phải | LEFT / RIGHT PUNCH |
+| Đấm tay trái / phải từ thủ thế (duỗi khuỷu rõ ràng) | LEFT / RIGHT PUNCH |
 | Đá nhanh chân trái / phải (chân kia trụ đất) | LEFT / RIGHT KICK |
 | Bật nhảy | JUMP |
-| Hai tay che mặt | BLOCK |
+| Hai tay che kín mặt | BLOCK |
 | Hạ thấp hông | CROUCH |
 | Nghiêng thân, hông giữ yên | DODGE ◄ / ► |
 | Dịch cả người sang trái / phải khỏi vị trí giữa | MOVE ◄ / ► |
@@ -49,7 +52,8 @@ Màn hình 1280×720 chia đôi: **trái** là webcam lật gương, skeleton v�
 3. Thanh công cụ:
    - **⏺ Record video** (phím `R`): quay toàn bộ canvas thành file `bodyfighter-YYYYMMDD-HHmmss.webm`.
    - **💾 Ghi phiên**: ghi landmark ra file JSON để phát lại hoặc phân tích.
-   - **🎯 Guided capture**: kịch bản thu dữ liệu có nhãn, khoảng 7 phút (phím `N` để bỏ qua bước). Kết thúc sẽ tải về `guided-*.json`.
+   - **⚡ Quick capture**: thu nhanh khoảng 1 phút (đấm trái, đấm phải, block, thủ thế) có nhãn.
+   - **🎯 Guided capture**: kịch bản thu dữ liệu có nhãn đầy đủ, khoảng 7 phút (phím `N` để bỏ qua bước). Kết thúc sẽ tải về `guided-*.json`.
    - **▶ Phát lại**: chọn hoặc kéo thả file phiên vào canvas. Nếu file có nhãn, bảng precision/recall hiện ở panel phải.
 
 ## Đo độ trễ glass-to-glass

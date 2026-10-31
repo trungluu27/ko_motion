@@ -6,7 +6,8 @@ import { LM } from '../../src/motion/landmarks';
 import type { PoseFrame } from '../../src/shared/types';
 import { type ArmPose, type SynthParams, synthFrame, synthSequence } from '../helpers/synthPose';
 
-const fwd = (ext: number): ArmPose => ({ ext, dir: 'forward' });
+// official stance is sideways (~45°): a punch extends across the image
+const fwd = (ext: number): ArmPose => ({ ext, dir: 'side' });
 const cover = { armL: { ext: 0, dir: 'cover' as const }, armR: { ext: 0, dir: 'cover' as const } };
 const T0 = 2000;
 
@@ -26,21 +27,23 @@ const feedAll = (engine: MotionEngine, frames: PoseFrame[], lag = 40): EngineOut
 const seq = (keys: { t: number; p: Partial<SynthParams> }[]) =>
   synthSequence(keys.map((k) => ({ ...k, t: T0 + k.t })));
 const events = (outs: EngineOutput[]) => outs.flatMap((o) => o.events);
+// real punches hold full extension for ~150-200 ms before retracting
 const jab = (t0: number) => [
   { t: t0, p: { armL: fwd(0.45) } },
   { t: t0 + 100, p: { armL: fwd(0.95) } },
-  { t: t0 + 250, p: { armL: fwd(0.45) } },
+  { t: t0 + 250, p: { armL: fwd(0.95) } },
+  { t: t0 + 400, p: { armL: fwd(0.45) } },
 ];
 
 describe('MotionEngine', () => {
   test('emits nothing before calibration', () => {
     const engine = new MotionEngine();
-    const outs = feedAll(engine, seq([...jab(0), { t: 500, p: { armL: fwd(0.45) } }]));
+    const outs = feedAll(engine, seq([...jab(0), { t: 600, p: { armL: fwd(0.45) } }]));
     expect(events(outs)).toHaveLength(0);
   });
 
   test('a calibrated jab yields punch_l with latency', () => {
-    const outs = feedAll(calibratedEngine(), seq([...jab(0), { t: 500, p: { armL: fwd(0.45) } }]));
+    const outs = feedAll(calibratedEngine(), seq([...jab(0), { t: 600, p: { armL: fwd(0.45) } }]));
     const ev = events(outs);
     expect(ev.map((e) => e.action)).toEqual(['punch_l']);
     const out = outs.find((o) => o.events.length)!;
@@ -54,8 +57,9 @@ describe('MotionEngine', () => {
       ...seq([
         { t: 333, p: { ...cover, armR: fwd(0.45) } },
         { t: 433, p: { ...cover, armR: fwd(0.95) } },
-        { t: 583, p: { ...cover, armR: fwd(0.45) } },
-        { t: 800, p: { ...cover, armR: fwd(0.45) } },
+        { t: 583, p: { ...cover, armR: fwd(0.95) } },
+        { t: 733, p: { ...cover, armR: fwd(0.45) } },
+        { t: 900, p: { ...cover, armR: fwd(0.45) } },
       ]),
     ]);
     expect(outs.some((o) => o.state.block)).toBe(true);
@@ -81,9 +85,16 @@ describe('MotionEngine', () => {
     expect(lost.tracking).toBe('partial');
     expect(lost.events).toHaveLength(0);
     expect(lost.state).toEqual({ block: false, crouch: false, dodge: 0, move: 0 });
-    const early = feedAll(engine, seq([{ t: 33, p: {} }, ...jab(66), { t: 340, p: { armL: fwd(0.45) } }]));
+    const early = feedAll(engine, seq([
+      { t: 33, p: { armL: fwd(0.45) } },
+      { t: 100, p: { armL: fwd(0.45) } },
+      { t: 166, p: { armL: fwd(0.95) } },
+      { t: 250, p: { armL: fwd(0.95) } },
+      { t: 320, p: { armL: fwd(0.45) } },
+      { t: 340, p: { armL: fwd(0.45) } },
+    ]));
     expect(events(early)).toHaveLength(0);
-    const later = feedAll(engine, seq([{ t: 373, p: {} }, ...jab(400), { t: 800, p: { armL: fwd(0.45) } }]));
+    const later = feedAll(engine, seq([{ t: 373, p: {} }, ...jab(400), { t: 900, p: { armL: fwd(0.45) } }]));
     expect(events(later).map((e) => e.action)).toEqual(['punch_l']);
   });
 
