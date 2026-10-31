@@ -7,6 +7,7 @@ import { type PoseModel, PoseTracker } from '../motion/poseTracker';
 import { ActionLabelTimer, drawWebcamPanel } from '../view/webcamPanel';
 import { type DebugData, type FeatureSample, type LogEntry, drawDebugPanel, pruneHistory, sampleOf } from './debugPanel';
 import { FpsCounter, LatencyStats } from './latencyStats';
+import { Latest } from './latest';
 import { renderMessage, setCameraOptions } from './message';
 
 export const LAB_W = 1280;
@@ -39,6 +40,9 @@ export class LabApp {
   readonly engine = new MotionEngine();
   video: HTMLVideoElement | null = null;
   private tracker: PoseTracker | null = null;
+  private readonly cameraRequest = new Latest();
+  private readonly trackerRequest = new Latest();
+  private livePaused = false;
   private calibrator: Calibrator | null = null;
   private calibration: Calibration | null = null;
   private calStatus: CalibrationProgress | null = null;
@@ -101,32 +105,50 @@ export class LabApp {
   }
 
   private async startCamera(deviceId?: string): Promise<void> {
+    const token = this.cameraRequest.begin();
     this.tracker?.stop();
     closeCamera(this.video);
     this.video = null;
     try {
-      this.video = await openCamera(deviceId);
+      const video = await openCamera(deviceId);
+      if (!this.cameraRequest.isCurrent(token)) {
+        closeCamera(video);
+        return;
+      }
+      this.video = video;
       this.showMessage(null);
       const cams = await listCameras();
-      const current = (this.video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().deviceId;
+      const current = (video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().deviceId;
       setCameraOptions(this.cameraSelect, cams);
       if (current) this.cameraSelect.value = current;
-      if (this.tracker) this.tracker.start(this.video, this.onPose);
+      this.startLive();
     } catch (e) {
+      if (!this.cameraRequest.isCurrent(token)) return;
       const msg = e instanceof CameraError ? e.message : `Lỗi camera: ${String(e)}`;
-      this.showMessage(`📷 ${msg} Bạn vẫn có thể phát lại phiên đã ghi.`, () => void this.init());
+      this.showMessage(`📷 ${msg} Bạn vẫn có thể phát lại phiên đã ghi.`, () => void this.startCamera());
     }
   }
 
   private async loadTracker(): Promise<void> {
+    const token = this.trackerRequest.begin();
     this.tracker?.close();
     this.tracker = null;
     try {
-      this.tracker = await PoseTracker.create(this.modelSelect.value as PoseModel);
-      if (this.video) this.tracker.start(this.video, this.onPose);
+      const tracker = await PoseTracker.create(this.modelSelect.value as PoseModel);
+      if (!this.trackerRequest.isCurrent(token)) {
+        tracker.close();
+        return;
+      }
+      this.tracker = tracker;
+      this.startLive();
     } catch (e) {
+      if (!this.trackerRequest.isCurrent(token)) return;
       this.showMessage(`Không tải được model nhận diện tư thế: ${String(e)}`, () => void this.loadTracker());
     }
+  }
+
+  private startLive(): void {
+    if (this.tracker && this.video && !this.livePaused) this.tracker.start(this.video, this.onPose);
   }
 
   get modelName(): PoseModel {
@@ -139,8 +161,9 @@ export class LabApp {
 
   /** Pauses live tracking (used while replaying a session). */
   setLivePaused(paused: boolean): void {
+    this.livePaused = paused;
     if (paused) this.tracker?.stop();
-    else if (this.tracker && this.video) this.tracker.start(this.video, this.onPose);
+    else this.startLive();
   }
 
   private loadCalibration(): void {
