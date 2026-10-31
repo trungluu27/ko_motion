@@ -122,6 +122,7 @@ export function installSessionControls(app: LabApp): void {
   app.prompt = () => guidedPrompt;
 
   app.frameListeners.push((frame) => {
+    if (replayStop) return;
     if (frame && recorder.recording) recorder.addFrame(frame);
     if (guided) onGuidedUpdate(guided.update(frame?.t ?? performance.now()));
   });
@@ -163,7 +164,13 @@ export function installSessionControls(app: LabApp): void {
     replayBtn.textContent = '⏹ Dừng phát lại';
     raf = requestAnimationFrame(step);
   };
+  const refuseWhileRecording = (): boolean => {
+    if (!recorder.recording) return false;
+    app.showMessage('Dừng ghi phiên hoặc guided capture trước khi phát lại.');
+    return true;
+  };
   const loadFile = async (file: File) => {
+    if (refuseWhileRecording()) return;
     try {
       startReplay(parseSession(await file.text()));
       app.showMessage(null);
@@ -172,7 +179,10 @@ export function installSessionControls(app: LabApp): void {
       app.showMessage(`📂 ${msg}`);
     }
   };
-  replayBtn.onclick = () => (replayStop ? replayStop() : fileInput.click());
+  replayBtn.onclick = () => {
+    if (replayStop) replayStop();
+    else if (!refuseWhileRecording()) fileInput.click();
+  };
   fileInput.onchange = () => {
     const f = fileInput.files?.[0];
     if (f) void loadFile(f);
