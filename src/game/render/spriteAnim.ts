@@ -25,6 +25,27 @@ export type AnimCtx = {
   clips: ClipInfo;
 };
 
+/** Jump height at the apex, in screen px at bodyScale 1 (jump clips are rendered in place). */
+export const JUMP_LIFT_PX = 120;
+
+/** Vertical offset of a jumping fighter, following the sim's jump arc so the sprite is airborne exactly when the sim is. */
+export function jumpLiftPx(f: Fighter, bodyScale: number): number {
+  return f.action.kind === 'jump' ? Math.sin((Math.PI * f.action.frame) / JUMP_FRAMES) * JUMP_LIFT_PX * bodyScale : 0;
+}
+
+/** Walking direction measured per sim tick, kept across ticks without movement (no fwd/back flicker). */
+export class WalkTracker {
+  private prevX: number | null = null;
+  dx = 0;
+
+  tick(f: Fighter): void {
+    const step = this.prevX === null ? 0 : f.x - this.prevX;
+    this.prevX = f.x;
+    if (f.action.kind !== 'walk') this.dx = 0;
+    else if (step !== 0) this.dx = step;
+  }
+}
+
 /** Delay before the KO winner starts celebrating, so the knockdown reads first. */
 const VICTORY_DELAY = 60;
 

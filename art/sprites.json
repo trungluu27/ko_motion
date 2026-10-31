@@ -29,7 +29,8 @@
       "file": "jump.fbx",
       "kind": "once",
       "start": 19,
-      "end": 91
+      "end": 91,
+      "lock_vertical": true
     },
     "crouch": {
       "file": "crouch.fbx",

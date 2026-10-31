@@ -2,7 +2,7 @@ import type Phaser from 'phaser';
 import type { ArenaView } from '../layout';
 import { MOVES } from '../sim/moves';
 import type { Fighter, MatchResult, MoveId, SimEvent } from '../sim/types';
-import { type ClipInfo, clipInfoFromMeta, spriteFrame } from './spriteAnim';
+import { type ClipInfo, WalkTracker, clipInfoFromMeta, jumpLiftPx, spriteFrame } from './spriteAnim';
 
 export type SpriteMeta = {
   anchor: { x: number; y: number };
@@ -22,7 +22,7 @@ export class FighterSprite {
   private readonly sprite: Phaser.GameObjects.Sprite;
   private readonly shadow: Phaser.GameObjects.Ellipse;
   private readonly clips: ClipInfo;
-  private prevX: number | null = null;
+  private readonly walk = new WalkTracker();
   private actionKind = '';
   private actionTicks = 0;
   private lastHitMove: MoveId | null = null;
@@ -41,6 +41,7 @@ export class FighterSprite {
 
   /** Call once per sim tick with that tick's events. */
   tick(f: Fighter, events: SimEvent[]): void {
+    this.walk.tick(f);
     if (f.action.kind !== this.actionKind) {
       this.actionKind = f.action.kind;
       this.actionTicks = 0;
@@ -57,10 +58,8 @@ export class FighterSprite {
   }
 
   draw(f: Fighter, opponent: Fighter, view: ArenaView, tick: number, result: MatchResult | null, sinceResult: number): void {
-    const dx = this.prevX === null ? 0 : f.x - this.prevX;
-    this.prevX = f.x;
     const { clip, index } = spriteFrame(f, {
-      self: this.self, opponentX: opponent.x, dx, lastHitMove: this.lastHitMove, result,
+      self: this.self, opponentX: opponent.x, dx: this.walk.dx, lastHitMove: this.lastHitMove, result,
       tick, actionTicks: this.actionTicks, sinceResult, clips: this.clips,
     });
     const scale = (STANDING_PX * view.bodyScale) / (this.meta.frameHeight * FILL);
@@ -70,13 +69,15 @@ export class FighterSprite {
       .setFlipX(f.facing < 0)
       .setOrigin(f.facing < 0 ? 1 - this.meta.anchor.x : this.meta.anchor.x, this.meta.anchor.y)
       .setScale(scale)
-      .setPosition(x, view.groundY);
-    this.shadow.setPosition(x, view.groundY).setScale(view.bodyScale);
+      .setPosition(x, view.groundY - jumpLiftPx(f, view.bodyScale));
+    const lift = jumpLiftPx(f, 1) / 120;
+    this.shadow.setPosition(x, view.groundY).setScale(view.bodyScale * (1 - 0.4 * lift));
 
     const a = f.action;
     const telegraph = a.kind === 'attack' && f.extraStartup > 0 && a.frame < MOVES[a.move].startup + f.extraStartup;
     if (this.flash > 0) this.sprite.setTintFill(0xffffff);
-    else if (telegraph && a.frame % 6 < 3) this.sprite.setTint(0xfde047);
+    // a solid yellow blink: multiplying the tint barely shows on dark clothes against the night stage
+    else if (telegraph && a.frame % 6 < 3) this.sprite.setTintFill(0xfde047);
     else this.sprite.clearTint();
   }
 

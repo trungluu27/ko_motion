@@ -176,7 +176,7 @@ def hips_world(arm: bpy.types.Object) -> Vector:
     return arm.matrix_world @ arm.pose.bones[HIPS].head
 
 
-def render_clip(arm: bpy.types.Object, frames: list[int], out_dir: str, clip: str, label_frames: bool = False) -> None:
+def render_clip(arm: bpy.types.Object, frames: list[int], out_dir: str, clip: str, label_frames: bool = False, lock_vertical: bool = False) -> None:
     scene = bpy.context.scene
     base = arm.location.copy()
     arm.location = base
@@ -189,7 +189,8 @@ def render_clip(arm: bpy.types.Object, frames: list[int], out_dir: str, clip: st
         bpy.context.view_layer.update()
         h = hips_world(arm)
         # lock horizontal root motion so every sprite is centred on the same spot
-        arm.location = base - Vector((h.x - ref.x, h.y - ref.y, 0))
+        # jumps are rendered in place (the game lifts the sprite along the sim's jump arc) so they never leave the frame
+        arm.location = base - Vector((h.x - ref.x, h.y - ref.y, (h.z - ref.z) if lock_vertical else 0))
         bpy.context.view_layer.update()
         scene.render.filepath = os.path.join(out_dir, f"{clip}{f:03d}.png" if label_frames else f"{clip}_{i:03d}.png")
         bpy.ops.render.render(write_still=True)
@@ -243,7 +244,7 @@ def render_fighter(name: str, config: dict, raw: str, out: str, only_clips: set[
         for old in os.listdir(out_dir):
             if old.startswith(f"{clip}_") and old.endswith(".png"):
                 os.remove(os.path.join(out_dir, old))
-        render_clip(arm, frames, out_dir, clip)
+        render_clip(arm, frames, out_dir, clip, lock_vertical=bool(spec.get("lock_vertical")))
         print(f"RENDERED {name}/{clip}: {len(frames)} frames in {time.time() - t0:.1f}s", flush=True)
 
 

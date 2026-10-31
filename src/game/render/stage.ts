@@ -5,7 +5,13 @@ export type StageInfo = { width: number; height: number; fighterRow: number; cur
 
 const MAX_SHIFT = 80;
 const FOLLOW = 0.16;
-const FACTORS = { far: 0.2, mid: 0.5, floor: 1 } as const;
+// the floor stays put: the fighters stand on it and would otherwise appear to slide
+const FACTORS = { far: 0.3, mid: 0.6, floor: 0 } as const;
+
+export function parallaxOffsets(midX: number): Record<keyof typeof FACTORS, number> {
+  const shift = Math.max(-MAX_SHIFT, Math.min(MAX_SHIFT, (midX - 500) * FOLLOW));
+  return { far: -shift * FACTORS.far + 0, mid: -shift * FACTORS.mid + 0, floor: -shift * FACTORS.floor + 0 };
+}
 
 /** Three-layer parallax backdrop that drifts with the fighters' midpoint. */
 export class Stage {
@@ -20,12 +26,12 @@ export class Stage {
   }
 
   draw(view: ArenaView, midX: number): void {
-    const shift = Math.max(-MAX_SHIFT, Math.min(MAX_SHIFT, (midX - 500) * FOLLOW));
+    const offsets = parallaxOffsets(midX);
     const cx = view.region.x + view.region.w / 2;
     // the row the fighters stand on in the render lines up with the arena ground
     const top = view.groundY - this.info.fighterRow;
     for (const [name, img] of Object.entries(this.layers) as [keyof typeof FACTORS, Phaser.GameObjects.Image][]) {
-      img.setOrigin(0.5, 0).setPosition(cx - shift * FACTORS[name], top);
+      img.setOrigin(0.5, 0).setPosition(cx + offsets[name], top);
     }
   }
 }
