@@ -6,3 +6,5 @@ __pycache__/
 public/models/*.task
 *.webm
 .DS_Store
+.superpowers/
+public/mediapipe/

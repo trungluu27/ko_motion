@@ -1,0 +1,40 @@
+{
+  "name": "body-fighter",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "tsc --noEmit && vitest run",
+    "setup": "tsx scripts/fetch-models.ts",
+    "eval": "tsx scripts/eval.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/trungluu27/ko_motion.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/trungluu27/ko_motion/issues"
+  },
+  "homepage": "https://github.com/trungluu27/ko_motion#readme",
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^1.2.0"
+  }
+}
