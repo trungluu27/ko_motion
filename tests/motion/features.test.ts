@@ -32,6 +32,11 @@ describe('FeatureExtractor', () => {
     expect(f.elbowAngle.l).toBeCloseTo(128.3, 0);
   });
 
+  test('2D reach grows for a sideways punch but not for one aimed at the camera', () => {
+    expect(one({ armL: { ext: 0.9, dir: 'side' } }).reach2d.l).toBeCloseTo((0.9 * 0.54) / 0.5, 1);
+    expect(one({ armL: { ext: 0.9, dir: 'forward' } }).reach2d.l).toBeLessThan(0.05);
+  });
+
   test('fast extension produces high extension velocity', () => {
     const fs = run(synthSequence([
       { t: 0, p: {} },

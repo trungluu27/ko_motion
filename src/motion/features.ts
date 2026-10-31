@@ -18,6 +18,8 @@ export type Features = {
   /** current torso length / calibrated torso length */
   torsoScale: number;
   armExt: LR<number>;
+  /** 2D wrist-to-shoulder distance in the image / calibrated torso length (robust for the far arm when standing sideways) */
+  reach2d: LR<number>;
   /** per second */
   armExtVel: LR<number>;
   elbowAngle: LR<number>;
@@ -79,6 +81,7 @@ export class FeatureExtractor {
       lean: (Math.atan2(hip.x - shoulders.x, hip.y - shoulders.y) * 180) / Math.PI,
       torsoScale: dist2d(shoulders, hip) / cal.torsoPx,
       armExt,
+      reach2d: lr((s) => dist2d(im[ARM[s][2]], im[ARM[s][0]]) / cal.torsoPx),
       armExtVel: vel(armExt, (s) => s.armExt),
       elbowAngle: lr((s) => angleDeg(w[ARM[s][0]], w[ARM[s][1]], w[ARM[s][2]])),
       wristNose: lr((s) => dist2d(im[ARM[s][2]], nose) / cal.shoulderPx),
