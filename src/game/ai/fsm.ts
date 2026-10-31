@@ -24,6 +24,11 @@ const WALL_MARGIN = 5;
 const PUNCH_DISTANCE = 85;
 const POKE_DISTANCE = 150;
 const MAX_PROB = 0.95;
+const GUARD_DISTANCE = 170;
+const GUARD_RELEASE_DISTANCE = 220;
+const GUARD_MIN_FRAMES = 18;
+const GUARD_EXTRA_FRAMES = 18;
+const COUNTER_ORDER: MoveId[] = ['punch_l', 'punch_r', 'kick_l', 'kick_r'];
 
 const COMBO_3: MoveId[][] = [
   ['punch_l', 'punch_r', 'kick_r'],
@@ -40,6 +45,8 @@ export class AiBrain {
   private holdUntil = 0;
   private nextDecision = 0;
   private specialStep = 0;
+  /** start frame of the last opponent attack we already rolled a reaction for */
+  private rolledFor: number | null = null;
 
   constructor(private readonly rng: Rng) {}
 
@@ -48,7 +55,7 @@ export class AiBrain {
   }
 
   private chance(p: number): boolean {
-    return this.rng() < Math.min(MAX_PROB, p);
+    return p > 0 && this.rng() < Math.min(MAX_PROB, p);
   }
 
   private pick<T>(xs: T[]): T {
@@ -67,7 +74,8 @@ export class AiBrain {
 
   /** True when the current state has nothing left to do and should not wait for the next decision tick. */
   private planDone(ctx: BrainContext): boolean {
-    if (this.st === 'attack') return this.plan.length === 0 && isFree(ctx.self);
+    if (this.st === 'attack' || this.st === 'counter') return this.plan.length === 0 && isFree(ctx.self);
+    if (this.st === 'dodge') return true;
     if (this.st === 'special') return this.specialStep >= 2;
     return false;
   }
@@ -81,11 +89,42 @@ export class AiBrain {
     return (away < 0 && ctx.self.x <= EDGE + WALL_MARGIN) || (away > 0 && ctx.self.x >= ARENA_W - EDGE - WALL_MARGIN);
   }
 
+  /** Rolls once per opponent attack: punish it in recovery, or dodge it during startup. */
+  private react(ctx: BrainContext, d: number): boolean {
+    const { seen, self, params, mult, frame } = ctx;
+    const a = seen?.action;
+    if (!a || !isFree(self)) return false;
+    if (a.kind === 'blockstun' || (a.kind === 'attack' && a.frame >= MOVES[a.move].startup + MOVES[a.move].active)) {
+      const key = a.kind === 'attack' ? frame - a.frame : -1 - frame;
+      if (a.kind === 'attack' && this.rolledFor === key) return false;
+      this.rolledFor = a.kind === 'attack' ? key : this.rolledFor;
+      const move = COUNTER_ORDER.find((m) => MOVES[m].range >= d && self.stamina >= MOVES[m].stamina);
+      if (move && this.chance(params.counterChance * mult.counter)) {
+        this.st = 'counter';
+        this.plan = [move];
+        return true;
+      }
+      return false;
+    }
+    if (a.kind === 'attack' && a.frame < MOVES[a.move].startup && d <= MOVES[a.move].range) {
+      const key = frame - a.frame;
+      if (this.rolledFor === key) return false;
+      this.rolledFor = key;
+      if (this.chance(params.dodgeChance * mult.dodge)) {
+        this.st = 'dodge';
+        return true;
+      }
+    }
+    return false;
+  }
+
   private decide(ctx: BrainContext): void {
     const { self, params, mult, frame } = ctx;
     const d = this.distance(ctx);
-    // keep finishing a combo or a timed hold
-    if (this.st === 'attack' && this.plan.length > 0) return;
+    // keep finishing a combo; reactions may interrupt pauses and guards
+    if ((this.st === 'attack' || this.st === 'counter') && this.plan.length > 0) return;
+    if (this.react(ctx, d)) return;
+    if (this.st === 'block' && d > GUARD_RELEASE_DISTANCE) this.holdUntil = frame;
     if ((this.st === 'idle' || this.st === 'block') && frame < this.holdUntil) return;
     if (this.st === 'retreat' && self.stamina < RECOVERED_STAMINA && !this.pinnedWhenRetreating(ctx)) return;
 
@@ -96,6 +135,11 @@ export class AiBrain {
     }
     if (self.stamina < LOW_STAMINA && !this.pinnedWhenRetreating(ctx)) {
       this.st = 'retreat';
+      return;
+    }
+    if (d <= GUARD_DISTANCE && this.chance(params.blockChance * mult.block)) {
+      this.st = 'block';
+      this.holdUntil = frame + GUARD_MIN_FRAMES + Math.floor(this.rng() * (GUARD_EXTRA_FRAMES + 1));
       return;
     }
     const stop = mult.kickBias < 1 ? POKE_DISTANCE : PUNCH_DISTANCE;
@@ -142,6 +186,13 @@ export class AiBrain {
         }
         return { ...NO_INPUT };
       }
+      case 'block':
+        return { ...NO_INPUT, block: true };
+      case 'dodge':
+        this.st = 'idle';
+        this.holdUntil = ctx.frame;
+        return { ...NO_INPUT, dodge: true };
+      case 'counter':
       case 'attack': {
         if (!isFree(self) || this.plan.length === 0) return { ...NO_INPUT };
         const move = this.plan[0];
