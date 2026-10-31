@@ -115,6 +115,7 @@ Tính cho mỗi frame, sau khi lọc One Euro (minCutoff 1.0, beta 3 cho toạ �
 - **Thang đo cơ thể** (từ calibration): `torsoPx` (độ dài từ trung điểm vai đến trung điểm hông trên ảnh), `shoulderPx`, chiều dài tay và chân theo world.
 - **Toàn cục (ảnh):** độ lệch tâm hông so với baseline: `hipDx` (chia cho `shoulderPx`) và `hipDy` (chia cho `torsoPx`, dương = hạ xuống); độ nâng mắt cá trái/phải so với baseline sàn (chia cho chiều dài chân trên ảnh).
 - **Thân:** góc nghiêng thân `lean` = góc của vector hông→vai so với phương thẳng đứng; `shoulderDx` = độ lệch của trung điểm vai so với tâm hông.
+- **Tay (ảnh, 2D):** `reach2d[L/R]` = khoảng cách cổ tay–vai trên ảnh (đơn vị vuông) / `torsoPx`. Khi đứng nghiêng, tay phía xa bị thân che nên 3D kém tin cậy, còn 2D cho tín hiệu rõ (thủ thế ~0.12, đỉnh cú đấm ~0.75).
 - **Tay (world, 3D):** `armExt[L/R]` = |cổ tay − vai| / (cánh tay + cẳng tay); `elbowAngle[L/R]`; vận tốc `armExtVel` (đạo hàm qua 3 frame).
 - **Chân (world + ảnh):** `ankleLift[L/R]`, `kneeAngle[L/R]`, vận tốc tương ứng.
 - **Tay so với mặt:** khoảng cách cổ tay→mũi chia cho `shoulderPx`; cổ tay cao hơn vai hay không.
@@ -127,15 +128,15 @@ Mỗi recognizer là một state machine nhỏ, ngưỡng nằm trong `config.ts
 
 | Động tác | Loại | Quy tắc kích hoạt (ban đầu) | Điều kiện reset |
 |---|---|---|---|
-| Punch L/R | event | `armExt` vượt 0.80 **và** `armExtVel` > 2.5/s **và** `elbowAngle` > 100° (≈ độ duỗi 0.78; 140° ban đầu mâu thuẫn với 0.80), cổ tay nằm giữa giữa-thân và trên đỉnh đầu | `armExt` < 0.55 (thu tay), refractory 180 ms |
+| Punch L/R | event | `elbowAngle` > 130° **và** góc khuỷu tăng ≥ 30° so với mức thấp nhất trong 400 ms trước đó **và** (`reach2d` > 0.5 **hoặc** `armExt` > 0.85), cổ tay nằm giữa giữa-thân và trên đỉnh đầu. Không dùng ngưỡng tốc độ tuyệt đối: dữ liệu thật ở 16–30 FPS chỉ đo được 0.7–1.4/s | `elbowAngle` < 115° (thu tay), refractory 180 ms |
 | Kick L/R | event | `ankleLift` của một chân > 0.35, chân kia vẫn gần sàn (< 0.10), vận tốc nâng > 1.5/s | mắt cá về < 0.15, refractory 350 ms |
 | Jump | event | cả hai mắt cá **và** tâm hông nâng > 0.12 × torso trong ≤ 300 ms | tiếp đất (hông về < 0.05), refractory 500 ms |
-| Block | state | cả hai cổ tay cao hơn vai, cách mũi < 0.7 × vai, giữ ≥ 100 ms | điều kiện mất ≥ 120 ms (hysteresis) |
+| Block | state | cả hai cổ tay cao hơn vai, **cả hai** cách mũi < 0.5 × vai, không tay nào đang duỗi (khuỷu < 120°), giữ ≥ 150 ms | điều kiện mất ≥ 120 ms; tay duỗi (khuỷu > 120°) thì tắt ngay |
 | Crouch | state | `hipDy` hạ > 0.25 × torso, giữ ≥ 120 ms | `hipDy` < 0.15 |
 | Dodge L/R | state | `lean` > 15° về một phía **và** \|`hipDx`\| < 0.30 (hông giữ yên, chỉ thân nghiêng) | `lean` < 8° |
 | Move L/R | state | \|`hipDx`\| > 0.45 (kiểu joystick: lệch khỏi vùng trung tâm thì đi liên tục) | \|`hipDx`\| < 0.30 (hysteresis) |
 
-**Xử lý xung đột:** Jump chặn Kick trong cùng cửa sổ thời gian. **Punch thắng Block**: block chỉ tính khi cả hai tay đang co (độ duỗi < 0.55); một tay duỗi ra là block tắt ngay. (Bản đầu để Block chặn Punch, nhưng như vậy tư thế thủ thế cao làm mất mọi cú đấm.) Đang Crouch thì không phát Jump. Double punch không phải recognizer riêng: hai event punch_l và punch_r trong vòng 250 ms sẽ do tầng combo của game diễn giải.
+**Xử lý xung đột:** Jump chặn Kick trong cùng cửa sổ thời gian. **Punch thắng Block**: một tay duỗi ra (khuỷu > 120°) là block tắt ngay. (Bản đầu để Block chặn Punch, khiến tư thế thủ thế cao làm mất mọi cú đấm.) Đang Crouch thì không phát Jump. Double punch không phải recognizer riêng: hai event punch_l và punch_r trong vòng 250 ms sẽ do tầng combo của game diễn giải.
 
 `confidence` = tích của (visibility trung bình các khớp liên quan) và (mức vượt ngưỡng, chuẩn hoá về 0..1). Event có confidence < 0.5 bị bỏ.
 
@@ -158,7 +159,7 @@ Bố cục chia đôi màn hình 1280×720 (cùng bố cục sẽ dùng trong ga
 - **Độ trễ:** `latency = tEmit − frame.t` (gồm thời gian suy luận và thời gian xác nhận động tác). Hiển thị p50/p95. Mục tiêu p95 ≤ 120 ms trên máy người dùng. Độ trễ của webcam/màn hình được đo thủ công một lần bằng cách quay slow-mo điện thoại (hướng dẫn ghi trong README).
 - **Độ chính xác** (`npm run eval` chạy `scripts/eval.ts` trên `fixtures/sessions`): event khớp nhãn nếu rơi vào `[tStart, tEnd + 300ms]`. Mục tiêu mỗi động tác rời rạc **precision ≥ 0.90, recall ≥ 0.85**. Phiên shadow-boxing 60 s có **≤ 2 event sai** cho mỗi loại.
 - Tracking ≥ 25 FPS với model full; nếu không đạt thì mặc định dùng lite.
-- Nếu Punch không đạt khi đứng thẳng, thử tư thế đứng nghiêng khoảng 45° và ghi kết luận vào README (khuyến nghị tư thế cho người chơi).
+- **Kết luận đã đo (2026-10-31):** đứng thẳng đấm vào camera gần như không đo được (cổ tay đứng yên trên ảnh, MediaPipe chỉ thấy tay tiến khoảng 0.1 m). **Tư thế chính thức: đứng nghiêng khoảng 45°**, khớp với game nhìn ngang. Xem Phụ lục A.
 
 ### 5.7. Kiểm thử
 
@@ -276,4 +277,12 @@ Mỗi phase có một implementation plan riêng trong `docs/superpowers/plans/`
 
 ## Phụ lục A – Kết quả đo (điền sau Phase 1)
 
-_(Bảng precision/recall theo động tác, độ trễ p50/p95, FPS, tư thế khuyến nghị.)_
+Phiên `fixtures/sessions/2026-10-31-side-quick.json.gz`: đứng nghiêng, vai trái hướng về camera, model full, ~16 FPS khi ghi (30 FPS khi không ghi).
+
+| Hạng mục | Trước khi sửa | Sau khi sửa (mục tiêu) |
+|---|---|---|
+| punch_l precision / recall | 1.00 / 0.70 | ≥ 0.90 / ≥ 0.85 |
+| punch_r precision / recall | – / 0.00 | ≥ 0.90 / ≥ 0.85 |
+| Block (frame trong cửa sổ block) | 0 / 84 | ≥ 70 / 84, ≤ 10 frame nhầm khi thủ thế |
+
+_(Các action còn lại và độ trễ: điền sau phiên guided đầy đủ.)_
