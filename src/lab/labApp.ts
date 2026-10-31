@@ -5,7 +5,7 @@ import { DEFAULT_CONFIG } from '../motion/config';
 import { type EngineOutput, MotionEngine } from '../motion/motionEngine';
 import { type PoseModel, PoseTracker } from '../motion/poseTracker';
 import { ActionLabelTimer, drawWebcamPanel } from '../view/webcamPanel';
-import { type DebugData, type FeatureSample, type LogEntry, drawDebugPanel, sampleOf } from './debugPanel';
+import { type DebugData, type FeatureSample, type LogEntry, drawDebugPanel, pruneHistory, sampleOf } from './debugPanel';
 import { FpsCounter, LatencyStats } from './latencyStats';
 
 export const LAB_W = 1280;
@@ -201,8 +201,7 @@ export class LabApp {
     if (this.log.length > 100) this.log.splice(0, this.log.length - 100);
     if (out.features) {
       this.history.push(sampleOf(out.features));
-      const cutoff = out.features.t - 6000;
-      while (this.history.length && this.history[0].t < cutoff) this.history.shift();
+      this.history = pruneHistory(this.history, out.features.t, 6000);
     }
     for (const l of this.frameListeners) l(frame, out);
   }

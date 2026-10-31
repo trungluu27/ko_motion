@@ -155,6 +155,7 @@ export function installSessionControls(app: LabApp): void {
       cancelAnimationFrame(raf);
       replayStop = null;
       app.replaySize = null;
+      app.resetView();
       app.setLivePaused(false);
       replayBtn.textContent = '▶ Phát lại';
     };

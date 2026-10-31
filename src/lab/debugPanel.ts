@@ -19,6 +19,11 @@ export function sampleOf(f: Features): FeatureSample {
   };
 }
 
+/** Samples within [latestT - spanMs, latestT]; drops anything from another timeline (e.g. a replayed session). */
+export function pruneHistory(history: FeatureSample[], latestT: number, spanMs: number): FeatureSample[] {
+  return history.filter((h) => h.t >= latestT - spanMs && h.t <= latestT);
+}
+
 const c = DEFAULT_CONFIG;
 const SERIES: { key: SeriesKey; min: number; max: number; thresholds: number[] }[] = [
   { key: 'armExt_l', min: 0.2, max: 1.05, thresholds: [c.punch.extOn, c.punch.extOff] },
