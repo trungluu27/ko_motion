@@ -10,3 +10,5 @@ public/models/*.task
 public/mediapipe/
 out/
 .pytest_cache/
+art/raw/
+art/render/
