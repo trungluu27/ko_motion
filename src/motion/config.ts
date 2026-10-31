@@ -13,7 +13,7 @@ export type MotionConfig = {
 };
 
 export const DEFAULT_CONFIG: MotionConfig = {
-  oneEuro: { minCutoff: 1.0, beta: 0.02, dCutoff: 1.0 },
+  oneEuro: { minCutoff: 1.0, beta: 1.0, dCutoff: 1.0 },
   tracking: { visibilityMin: 0.5, edgeMargin: 0.02, resumeDebounceMs: 300, gapResetMs: 250 },
   calibration: { frames: 45, hipStableMax: 0.03, recalibrateRatio: 0.25 },
   punch: { extOn: 0.8, velOn: 2.5, elbowMinDeg: 140, extOff: 0.55, refractoryMs: 180 },

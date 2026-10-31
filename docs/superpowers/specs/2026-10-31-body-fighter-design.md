@@ -111,7 +111,7 @@ motionEngine.ts ghép tất cả: feed(PoseFrame) → ControlFrame
 
 ### 5.2. Feature (`features.ts`)
 
-Tính cho mỗi frame, sau khi lọc One Euro (minCutoff 1.0, beta 0.02; chỉnh được trong `config.ts`):
+Tính cho mỗi frame, sau khi lọc One Euro (minCutoff 1.0, beta 1.0; chỉnh được trong `config.ts`. Beta 0.02 ban đầu làm trễ khoảng 11 frame, đã đổi ở Task 4 của plan Phase 1):
 - **Thang đo cơ thể** (từ calibration): `torsoPx` (độ dài từ trung điểm vai đến trung điểm hông trên ảnh), `shoulderPx`, chiều dài tay và chân theo world.
 - **Toàn cục (ảnh):** độ lệch tâm hông so với baseline: `hipDx` (chia cho `shoulderPx`) và `hipDy` (chia cho `torsoPx`, dương = hạ xuống); độ nâng mắt cá trái/phải so với baseline sàn (chia cho chiều dài chân trên ảnh).
 - **Thân:** góc nghiêng thân `lean` = góc của vector hông→vai so với phương thẳng đứng; `shoulderDx` = độ lệch của trung điểm vai so với tâm hông.
