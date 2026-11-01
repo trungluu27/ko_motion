@@ -1,6 +1,8 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  // relative asset URLs, so the build also runs under https://<user>.github.io/<repo>/
+  base: './',
   build: {
     chunkSizeWarningLimit: 2000,
     rollupOptions: {

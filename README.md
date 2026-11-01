@@ -2,7 +2,15 @@
 
 Game đối kháng võ thuật 2D điều khiển bằng chuyển động toàn thân qua webcam (MediaPipe Pose). Chạy hoàn toàn trên trình duyệt.
 
-> Trạng thái: **Phase 3 – điều khiển bằng cơ thể**: đánh với AI bằng webcam, chia đôi màn hình, quay video. Đã xong Phase 1, 2, 4. Thiết kế đầy đủ: [`docs/superpowers/specs/2026-10-31-body-fighter-design.md`](docs/superpowers/specs/2026-10-31-body-fighter-design.md).
+**▶ Chơi ngay:** https://trungluu27.github.io/ko_motion/ (Chrome hoặc Edge, cần webcam nếu muốn chơi bằng cơ thể; bàn phím chơi được ngay)
+
+## Demo
+
+<!-- Thay bằng GIF/video thật: trong game bấm P (hoặc nút ⏺) để quay cả webcam lẫn trận đấu ra file .webm,
+     chuyển sang GIF (vd. ffmpeg -i demo.webm -vf "fps=15,scale=960:-1" demo.gif) rồi đặt vào docs/demo.gif -->
+![Demo: người chơi đấm đá trước webcam, nhân vật trong game đánh theo](docs/demo.gif)
+
+> Trạng thái: **đủ 5 phase**: menu, đấu với AI 3 cấp độ bằng bàn phím hoặc cơ thể, training (drill, bao cát), màn kết quả, nhạc nền, quay video, deploy GitHub Pages. Thiết kế đầy đủ: [`docs/superpowers/specs/2026-10-31-body-fighter-design.md`](docs/superpowers/specs/2026-10-31-body-fighter-design.md).
 
 ## Chạy
 
@@ -23,9 +31,18 @@ Các lệnh khác:
 | `npm run eval -- --dump out` | Như trên, đồng thời xuất feature ra CSV cho Python |
 | `npm run build` | Build tĩnh vào `dist/` |
 
+## Menu
+
+Mở game là vào menu (chuột hoặc ↑/↓ + Enter, Esc quay lại):
+
+- **Quick Fight**: chọn AI Easy / Normal / Hard. Hết trận có màn kết quả: đòn trúng, combo dài nhất, đòn đỡ được, số cú đấm/đá, sát thương, kcal ước tính cho vui. Enter đấu lại, M về menu.
+- **Training**: **Drill** gọi tên ngẫu nhiên 12 động tác (đấm/đá trái phải, block), chấm đúng/sai và thời gian phản ứng; **Bao cát** không đánh trả, tự hồi máu, không giới hạn giờ, hiện số combo.
+- **Cài đặt** (lưu lại giữa các lần mở): bàn phím hay cơ thể, bố cục webcam, camera, model Full/Lite, âm lượng, nhạc nền.
+- **Hướng dẫn & an toàn**: bảng phím, động tác, cách đặt camera. Lần đầu vào trận game hiện màn an toàn một lần.
+
 ## Chơi thử bằng bàn phím
 
-Mở `http://localhost:5173/`. Bạn là võ sĩ màu cyan, đối thủ màu hồng là AI (mặc định Normal). Đòn của đối thủ có báo trước bằng nhấp nháy vàng: khoảng 0.2 giây khi chơi bằng bàn phím, 0.4 giây khi chơi bằng cơ thể. Riêng đòn phạt lúc bạn đang hồi sau một đòn hụt hay bị đỡ thì không có báo trước.
+Chọn Quick Fight trong menu. Bạn là võ sĩ màu cyan, đối thủ màu hồng là AI (mặc định Normal). Đòn của đối thủ có báo trước bằng nhấp nháy vàng: khoảng 0.2 giây khi chơi bằng bàn phím, 0.4 giây khi chơi bằng cơ thể. Riêng đòn phạt lúc bạn đang hồi sau một đòn hụt hay bị đỡ thì không có báo trước.
 
 | Phím | Hành động |
 |---|---|
@@ -38,8 +55,10 @@ Mở `http://localhost:5173/`. Bạn là võ sĩ màu cyan, đối thủ màu h�
 | Q / E | Né (miễn đòn trong 1/3 giây) |
 | J rồi K thật nhanh khi thanh tím đầy | Special: Power Blast |
 | 1 / 2 / 3 | Đấu với AI Easy / Normal / Hard (đấu lại từ đầu) |
-| 0 | Bao cát ra jab đều đặn để luyện block/né |
+| 0 | Bao cát (không đánh trả, luyện combo) |
 | R | Đấu lại |
+| N | Bật/tắt nhạc nền |
+| Esc | Về menu |
 
 Combo: J→K (Double Jab), J→K→I (Triple Attack), K→U→I (Power Combo), Block→Né→K (Counter).
 
@@ -47,7 +66,7 @@ AI: Easy nghỉ nhiều, hiếm khi phòng thủ. Normal và Hard đứng ngay n
 
 ## Chơi bằng cơ thể
 
-1. Mở `http://localhost:5173/`, bấm vào màn hình game, rồi nhấn **C**.
+1. Trong **Cài đặt** chọn *Điều khiển: Cơ thể* rồi vào Quick Fight/Training (hoặc nhấn **C** ngay trong trận).
 2. Màn **Calibration** mở webcam. Đứng nghiêng khoảng 45° (vai trái hướng về camera), cách 2,5–3 m, đứng thủ thế yên khoảng 2 giây cho tới khi hiện "Sẵn sàng!". Nếu đã calibrate trước đó (ở game hoặc Motion Lab), nhấn **Enter** là vào trận ngay; **K** để calibrate lại.
 3. Trong trận: đấm, đá, che mặt (block), cúi, nghiêng người (né), dịch người sang trái/phải (đi). Bàn phím vẫn dùng được song song.
 4. Bước ra khỏi khung hình thì trận tự tạm dừng; đứng lại vào khung 1 giây thì đếm ngược 3-2-1 rồi chạy tiếp.
@@ -61,12 +80,29 @@ AI: Easy nghỉ nhiều, hiếm khi phòng thủ. Normal và Hard đứng ngay n
 
 ## Đặt camera và đứng
 
+```
+   (camera)                                       ┌───────────┐
+   ngang hông–ngực   ◄──────── 2,5 – 3 m ───────► │  2 × 2 m  │  người chơi
+   nhìn thẳng                                     │ trống,    │  đứng nghiêng 45°,
+                                                  │ sàn không │  thấy cả đầu và chân
+   ánh sáng chiếu từ phía sau camera ──►          │ trơn      │
+                                                  └───────────┘
+```
+
 - **Đứng nghiêng khoảng 45°** so với camera (ví dụ vai trái hướng về camera), giống tư thế võ sĩ. Đấm thẳng vào camera khi đứng đối diện gần như không đo được, vì webcam không thấy được chiều sâu.
 - **Calibrate ở đúng tư thế bạn sẽ chơi.** Đổi tư thế thì bấm Calibrate lại.
 - Block là **hai tay che kín mặt**, sát hơn tư thế thủ thế bình thường.
 - Camera cao khoảng ngang hông, nhìn thẳng. Đứng cách camera **2,5–3 m**, phải thấy cả đầu lẫn bàn chân.
 - Ánh sáng chiếu từ phía trước, tránh đứng ngược sáng cửa sổ.
 - Dọn sạch khoảng trống khoảng 2 × 2 m. Đi giày hoặc chân trần trên sàn không trơn.
+
+## An toàn
+
+Game bắt bạn vận động thật: chừa khoảng trống 2 × 2 m, đi chân trần trên sàn không trơn hoặc mang giày thể thao, khởi động 1 phút, đá vừa sức, nghỉ sau mỗi 2–3 trận và dừng ngay nếu đau hoặc chóng mặt.
+
+## Deploy
+
+Push lên `main` sẽ chạy `.github/workflows/pages.yml`: cài, `npm run setup` (tải model + WASM), `npm run check`, build rồi đăng `dist/` lên GitHub Pages. Lần đầu cần bật **Settings → Pages → Source: GitHub Actions** trong repo.
 
 ## Motion Lab
 
