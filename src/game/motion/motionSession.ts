@@ -1,7 +1,7 @@
 import { FpsCounter, LatencyStats } from '../../lab/latencyStats';
 import type { Calibration } from '../../motion/calibration';
 import { loadCalibration, saveCalibration } from '../../motion/calibrationStore';
-import { closeCamera, openCamera } from '../../motion/camera';
+import { CameraError, closeCamera, openCamera } from '../../motion/camera';
 import { type EngineOutput, MotionEngine } from '../../motion/motionEngine';
 import { type PoseModel, PoseTracker } from '../../motion/poseTracker';
 import type { PoseFrame } from '../../shared/types';
@@ -51,7 +51,7 @@ export class MotionSession {
 
   constructor(
     private readonly deps: SessionDeps = DEFAULT_DEPS,
-    private readonly storage: Storage = localStorage,
+    private readonly storage?: Storage,
   ) {
     this.engine.setCalibration(this.calibration);
   }
@@ -67,7 +67,7 @@ export class MotionSession {
     this.starting ??= (async () => {
       try {
         const settings = loadSettings(this.storage);
-        this.video ??= await this.deps.openCamera(settings.cameraId ?? undefined);
+        this.video ??= await this.openChosenCamera(settings.cameraId);
         if (this.tracker && this.trackerModel !== settings.model) {
           this.tracker.close();
           this.tracker = null;
@@ -76,7 +76,9 @@ export class MotionSession {
           this.tracker = await this.deps.createTracker(settings.model);
           this.trackerModel = settings.model;
         }
-        if (!this.wanted) {
+        // a pause during the model load released the camera; a start since then wants it back
+        if (this.wanted) this.video ??= await this.openChosenCamera(settings.cameraId);
+        if (!this.wanted || !this.video) {
           this.releaseCamera();
           return;
         }
@@ -92,7 +94,18 @@ export class MotionSession {
     return this.starting;
   }
 
-  /** Stops inference and releases the camera (the loaded model is kept for the next start). */
+  /** The camera picked in the settings, or the default one when that camera is gone (unplugged). */
+  private async openChosenCamera(cameraId: string | null): Promise<HTMLVideoElement> {
+    if (!cameraId) return this.deps.openCamera();
+    try {
+      return await this.deps.openCamera(cameraId);
+    } catch (e) {
+      if (e instanceof CameraError && e.kind === 'not_found') return this.deps.openCamera();
+      throw e;
+    }
+  }
+
+    /** Stops inference and releases the camera (the loaded model is kept for the next start). */
   pause(): void {
     this.wanted = false;
     this.tracker?.stop();

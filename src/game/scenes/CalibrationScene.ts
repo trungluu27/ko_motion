@@ -26,6 +26,8 @@ export class CalibrationScene extends Phaser.Scene {
   private status!: Phaser.GameObjects.Text;
   private keysHint!: Phaser.GameObjects.Text;
   private error: string | null = null;
+  /** bumped per create(): async callbacks from an earlier visit must not act on this one */
+  private visit = 0;
   private next: LaunchData = { launch: { mode: 'fight', opponent: 'normal' }, rest: ['fight'] };
 
   constructor() {
@@ -69,13 +71,16 @@ export class CalibrationScene extends Phaser.Scene {
       }
     });
 
+    const visit = ++this.visit;
     this.session.start().catch((e: unknown) => {
+      if (visit !== this.visit || !this.sys.isActive()) return;
       this.error = e instanceof CameraError ? e.message : `Không mở được camera hoặc model: ${String(e)}`;
       this.time.delayedCall(4000, () => advance(this, this.next, { control: 'keyboard', notice: this.error }));
     });
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === 'Enter' && this.session.calibration && !this.calibrator && this.session.running) {
+      if (e.repeat) return;
+      if ((e.code === 'Enter' || e.code === 'NumpadEnter') && this.session.calibration && !this.calibrator && this.session.running) {
         advance(this, this.next, { control: 'body' });
       } else if (e.code === 'KeyK' && this.session.running) {
         this.calibrator = new Calibrator(DEFAULT_CONFIG);
@@ -108,7 +113,7 @@ export class CalibrationScene extends Phaser.Scene {
     this.status.setText(this.statusText());
     this.status.setColor(ready ? '#4ade80' : this.error ? '#f87171' : '#facc15');
     this.keysHint.setText(
-      ready ? 'Enter: vào trận · K: calibrate lại · Esc: chơi bằng bàn phím' : 'K: calibrate lại · Esc: chơi bằng bàn phím',
+      ready ? 'Enter: bắt đầu · K: calibrate lại · Esc: về menu' : 'K: calibrate lại · Esc: về menu',
     );
     this.webcam.draw(WEBCAM, this.session, null);
   }

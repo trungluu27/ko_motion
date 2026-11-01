@@ -24,6 +24,8 @@ export class HelpScene extends Phaser.Scene {
     this.add.text(640, 690, 'Esc hoặc Enter: về menu', { fontFamily: FONT, fontSize: '18px', color: '#64748b' }).setOrigin(0.5);
 
     const onKey = (e: KeyboardEvent) => {
+      // a held Enter must not also confirm the next screen
+      if (e.repeat) return;
       if (e.code === 'Escape' || e.code === 'Enter' || e.code === 'NumpadEnter') this.scene.start('menu');
     };
     window.addEventListener('keydown', onKey);

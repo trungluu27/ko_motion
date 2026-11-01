@@ -58,6 +58,8 @@ export class ResultScene extends Phaser.Scene {
     this.add.text(640, 670, 'Enter: đấu lại · M hoặc Esc: về menu', { fontFamily: FONT, fontSize: '22px', fontStyle: '800', color: '#22d3ee' }).setOrigin(0.5);
 
     const onKey = (e: KeyboardEvent) => {
+      // a held Enter must not also confirm the next screen
+      if (e.repeat) return;
       if (e.code === 'Enter' || e.code === 'NumpadEnter') {
         this.scene.start('fight', { launch, rest: [], control: this.d.control } satisfies LaunchData);
       } else if (e.code === 'Escape' || e.code === 'KeyM') {

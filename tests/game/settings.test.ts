@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, test, vi } from 'vitest';
 import { MotionSession, type SessionDeps } from '../../src/game/motion/motionSession';
+import { CameraError } from '../../src/motion/camera';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings } from '../../src/game/settings';
 
 const memory = (init: Record<string, string> = {}): Storage => {
@@ -44,6 +45,13 @@ describe('settings (spec phase5 3)', () => {
     expect(st.getItem('bf.model')).toBe('lite');
   });
 
+  test('storage that throws (site data blocked) gives defaults and does not crash on save', () => {
+    const broken = { ...memory(), getItem: () => { throw new Error('SecurityError'); }, setItem: () => { throw new Error('QuotaExceededError'); } } as Storage;
+    expect(loadSettings(broken)).toEqual(DEFAULT_SETTINGS);
+    expect(() => saveSettings(DEFAULT_SETTINGS, broken)).not.toThrow();
+    expect(loadSettings(null)).toEqual(DEFAULT_SETTINGS);
+  });
+
   test('an older bf.model key is honored when no settings exist yet', () => {
     expect(loadSettings(memory({ 'bf.model': 'lite' })).model).toBe('lite');
   });
@@ -82,5 +90,46 @@ describe('MotionSession uses the settings', () => {
     s.pause();
     await s.start();
     expect(f.deps.createTracker).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('review fixes: session restarts and missing cameras', () => {
+  test('pause then start again while the model is still loading still starts with a live camera', async () => {
+    const tracker = { start: vi.fn(), stop: vi.fn(), close: vi.fn() };
+    let resolveTracker!: () => void;
+    const video = {} as HTMLVideoElement;
+    const deps: SessionDeps = {
+      openCamera: vi.fn(async () => video),
+      closeCamera: vi.fn(),
+      createTracker: vi.fn(() => new Promise<typeof tracker>((r) => (resolveTracker = () => r(tracker)))),
+    };
+    const s = new MotionSession(deps, memory());
+    const first = s.start();
+    await vi.waitFor(() => expect(deps.createTracker).toHaveBeenCalled());
+    s.pause();
+    const second = s.start();
+    resolveTracker();
+    await first;
+    await second;
+    expect(tracker.start).toHaveBeenCalledWith(video, expect.any(Function));
+    expect(s.running).toBe(true);
+  });
+
+  test('a saved camera that is gone falls back to the default camera', async () => {
+    const st = memory();
+    saveSettings({ ...DEFAULT_SETTINGS, cameraId: 'unplugged' }, st);
+    const video = {} as HTMLVideoElement;
+    const deps: SessionDeps = {
+      openCamera: vi.fn(async (id?: string) => {
+        if (id) throw new CameraError('not_found', 'gone');
+        return video;
+      }),
+      closeCamera: vi.fn(),
+      createTracker: vi.fn(async () => ({ start: vi.fn(), stop: vi.fn(), close: vi.fn() })),
+    };
+    const s = new MotionSession(deps, st);
+    await s.start();
+    expect(vi.mocked(deps.openCamera).mock.lastCall?.[0]).toBeUndefined();
+    expect(s.running).toBe(true);
   });
 });

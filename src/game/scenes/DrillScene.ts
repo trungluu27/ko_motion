@@ -47,6 +47,12 @@ export class DrillScene extends Phaser.Scene {
   create(): void {
     const body = this.control === 'body';
     const cx = body ? 960 : 640;
+    // the scene object is reused: nothing held or guarded carries over from the last visit
+    this.bodyBlock = false;
+    this.bodyEvents = [];
+    this.down = new Set();
+    this.pressed = new Set();
+    this.labels = new ActionLabelTimer();
     this.webcam = new WebcamLayer(this);
     this.add.text(cx, 60, 'Drill', { fontFamily: FONT, fontSize: '36px', fontStyle: '900', color: '#22d3ee' }).setOrigin(0.5);
     this.sub = this.add.text(cx, 110, '', { fontFamily: FONT, fontSize: '20px', color: '#94a3b8', align: 'center' }).setOrigin(0.5);
@@ -82,11 +88,14 @@ export class DrillScene extends Phaser.Scene {
       }
     };
     const onUp = (e: KeyboardEvent) => this.down.delete(e.code);
+    const onBlur = () => this.down.clear();
     window.addEventListener('keydown', onDown);
     window.addEventListener('keyup', onUp);
+    window.addEventListener('blur', onBlur);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       window.removeEventListener('keydown', onDown);
       window.removeEventListener('keyup', onUp);
+      window.removeEventListener('blur', onBlur);
     });
     this.restart();
   }

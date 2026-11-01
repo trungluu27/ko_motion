@@ -66,6 +66,8 @@ export class FightScene extends Phaser.Scene {
   private simTicks = 0;
   private sinceResult = 0;
   private stats = new MatchStats();
+  /** bumped per create(): async callbacks from an earlier visit must not act on this one */
+  private visit = 0;
   private sinceHit = 0;
   private comboText!: Phaser.GameObjects.Text;
   private fighters!: Phaser.GameObjects.Graphics;
@@ -133,6 +135,7 @@ export class FightScene extends Phaser.Scene {
 
   create(): void {
     const font = 'system-ui, sans-serif';
+    this.visit++;
     this.down = new Set();
     this.pressed = new Set();
     this.step = new FixedStep();
@@ -217,7 +220,9 @@ export class FightScene extends Phaser.Scene {
       for (const e of out.events) this.labels.push(e, now);
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribe);
+    const visit = this.visit;
     session.start().catch((e: unknown) => {
+      if (visit !== this.visit || !this.sys.isActive()) return;
       this.toKeyboard();
       this.showNotice(`📷 ${e instanceof Error ? e.message : String(e)} Đã chuyển về bàn phím.`);
     });
@@ -368,6 +373,8 @@ export class FightScene extends Phaser.Scene {
         if (this.match.result) this.sinceResult++;
         this.sprites?.forEach((sp, j) => sp.tick(this.match.fighters[j], this.match.events));
         for (const e of this.match.events) {
+          // the sandbag is never knocked out (trainingTick already cleared the result)
+          if (this.opponent === 'dummy' && e.type === 'ko') continue;
           this.effects.handle(e, this.match);
           this.sfx.play(e);
         }

@@ -23,6 +23,8 @@ export class SafetyScene extends Phaser.Scene {
     this.add.text(640, 640, 'Enter: Tôi đã hiểu    ·    Esc: về menu', { fontFamily: FONT, fontSize: '24px', fontStyle: '800', color: '#22d3ee' }).setOrigin(0.5);
 
     const onKey = (e: KeyboardEvent) => {
+      // a held Enter must not also confirm the next screen
+      if (e.repeat) return;
       if (e.code === 'Enter' || e.code === 'NumpadEnter') {
         saveSettings({ ...loadSettings(), safetyAck: true });
         advance(this, this.data_);
