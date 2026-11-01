@@ -32,6 +32,13 @@ export class Sfx {
     if (this.master) this.master.gain.value = v;
   }
 
+  /** Drill cues: a new call, a correct answer, a wrong or missed one. */
+  drill(kind: 'prompt' | 'hit' | 'wrong'): void {
+    if (kind === 'prompt') this.tone('sine', 660, 660, 120, 0.25);
+    else if (kind === 'hit') this.tone('triangle', 880, 1320, 140, 0.25);
+    else this.tone('square', 220, 160, 200, 0.15);
+  }
+
   /** Menu cursor tick. */
   ui(): void {
     this.tone('triangle', 900, 700, 40, 0.12);

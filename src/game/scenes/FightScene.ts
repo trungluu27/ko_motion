@@ -17,6 +17,7 @@ import { poseFor } from '../render/pose';
 import { Sfx } from '../render/sfx';
 import { loadSettings, saveSettings } from '../settings';
 import { MatchStats } from '../stats';
+import { trainingTick } from '../training/dummy';
 import type { ResultData } from './ResultScene';
 import { OPPONENT_COLOR, PLAYER_COLOR, drawFighter } from '../render/stickFighter';
 import { WebcamLayer } from '../render/webcamLayer';
@@ -35,7 +36,7 @@ const GAME_KEYS = new Set(['Escape', 'KeyP', 'KeyA', 'KeyD', 'KeyS', 'KeyW', 'Ke
 type Opponent = Difficulty | 'dummy';
 const FIGHTER_KEYS = ['fighter_a', 'fighter_b'] as const;
 const OPPONENT_KEYS: Record<string, Opponent> = { Digit1: 'easy', Digit2: 'normal', Digit3: 'hard', Digit0: 'dummy' };
-const OPPONENT_LABEL: Record<Opponent, string> = { easy: 'AI Easy', normal: 'AI Normal', hard: 'AI Hard', dummy: 'bao cát' };
+const OPPONENT_LABEL: Record<Opponent, string> = { easy: 'AI Easy', normal: 'AI Normal', hard: 'AI Hard', dummy: 'bao cát (luyện combo)' };
 const VIEW_LABEL: Record<ViewMode, string> = { split: 'chia đôi', pip: 'webcam góc', game: 'chỉ game' };
 
 export type Control = 'keyboard' | 'body';
@@ -64,6 +65,8 @@ export class FightScene extends Phaser.Scene {
   private simTicks = 0;
   private sinceResult = 0;
   private stats = new MatchStats();
+  private sinceHit = 0;
+  private comboText!: Phaser.GameObjects.Text;
   private fighters!: Phaser.GameObjects.Graphics;
   private effects!: Effects;
   private hud!: Hud;
@@ -142,6 +145,10 @@ export class FightScene extends Phaser.Scene {
     this.info = this.add.text(0, CANVAS_H - 28, '', { fontFamily: font, fontSize: '15px', color: '#94a3b8' }).setOrigin(0.5).setDepth(41);
     this.overlay = this.add
       .text(0, 330, '', { fontFamily: font, fontSize: '44px', fontStyle: '900', color: '#f8fafc', stroke: '#020617', strokeThickness: 8, align: 'center' })
+      .setOrigin(0.5)
+      .setDepth(60);
+    this.comboText = this.add
+      .text(0, 150, '', { fontFamily: font, fontSize: '40px', fontStyle: '900', color: '#facc15', stroke: '#020617', strokeThickness: 6 })
       .setOrigin(0.5)
       .setDepth(60);
     this.perf = this.add.text(12, CANVAS_H - 52, '', { fontFamily: 'ui-monospace, monospace', fontSize: '14px', color: '#a3e635' }).setDepth(61);
@@ -273,6 +280,7 @@ export class FightScene extends Phaser.Scene {
     this.match = createMatch({ extraStartup: [0, telegraphFor(this.control)] });
     this.sinceResult = 0;
     this.stats = new MatchStats();
+    this.sinceHit = 0;
     this.intent = new IntentBuilder();
     this.motion.clear();
     this.pause.reset();
@@ -283,7 +291,7 @@ export class FightScene extends Phaser.Scene {
   /** A fresh opponent per match, so no AI statistics or plans carry over. */
   private makeOpponent(): { next: (m: Match) => TickInput } {
     if (this.opponent === 'dummy') {
-      const dummy = new DummyInput('jab');
+      const dummy = new DummyInput('idle');
       return { next: (m) => dummy.next(m.frame) };
     }
     return new AiInput(this.opponent, 1, Date.now() >>> 0);
@@ -336,6 +344,11 @@ export class FightScene extends Phaser.Scene {
         const player = body ? mergeInputs(this.motion.next(now), keys) : keys;
         stepMatch(this.match, [player, this.opponentInput.next(this.match)]);
         this.stats.observe(this.match.events, this.match.frame);
+        if (this.opponent === 'dummy') {
+          const hit = this.match.events.some((e) => (e.type === 'hit' || e.type === 'guard_break') && e.fighter === 0);
+          this.sinceHit = hit ? 0 : this.sinceHit + 1;
+          trainingTick(this.match, this.sinceHit);
+        }
         this.simTicks++;
         if (this.match.result) this.sinceResult++;
         this.sprites?.forEach((sp, j) => sp.tick(this.match.fighters[j], this.match.events));
@@ -366,6 +379,9 @@ export class FightScene extends Phaser.Scene {
     this.hud.draw(hudModel(this.match), this.layout.arena);
     if (session) this.webcam.draw(this.layout.webcam, session, this.labels.current(now));
     else this.webcam.draw(null, MotionSession.get(), null);
+
+    const combo = this.stats.comboAt(this.match.frame);
+    this.comboText.setX(this.layout.arena.x + this.layout.arena.w / 2).setText(this.opponent === 'dummy' && combo >= 2 ? `COMBO ×${combo}` : '');
 
     const noticeOn = this.notice !== null && now < this.noticeUntil;
     this.overlay.setText(

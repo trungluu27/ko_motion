@@ -55,6 +55,11 @@ export class MatchStats {
     }
   }
 
+  /** The chain still on screen at this frame: 0 once COMBO_GAP passed without a hit. */
+  comboAt(frame: number): number {
+    return frame - this.lastHitFrame <= COMBO_GAP ? this.currentCombo : 0;
+  }
+
   snapshot(): StatsSnapshot {
     return { ...this.s };
   }

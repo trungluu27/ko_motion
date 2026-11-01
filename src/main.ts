@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CalibrationScene } from './game/scenes/CalibrationScene';
+import { DrillScene } from './game/scenes/DrillScene';
 import { FightScene } from './game/scenes/FightScene';
 import { HelpScene } from './game/scenes/HelpScene';
 import { MenuScene } from './game/scenes/MenuScene';
@@ -15,5 +16,5 @@ new Phaser.Game({
   backgroundColor: '#020617',
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   // the first scene starts automatically
-  scene: [MenuScene, FightScene, CalibrationScene, SettingsScene, HelpScene, SafetyScene, ResultScene],
+  scene: [MenuScene, FightScene, CalibrationScene, SettingsScene, HelpScene, SafetyScene, ResultScene, DrillScene],
 });

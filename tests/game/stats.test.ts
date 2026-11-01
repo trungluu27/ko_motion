@@ -20,6 +20,13 @@ describe('MatchStats (spec phase5 4)', () => {
     expect(s.snapshot().hitsLanded).toBe(3);
   });
 
+  test('the live combo counter lapses after COMBO_GAP without a hit', () => {
+    const s = new MatchStats();
+    [0, 30].forEach((f) => s.observe([hit(0)], f));
+    expect(s.comboAt(60)).toBe(2);
+    expect(s.comboAt(30 + 43)).toBe(0);
+  });
+
   test('hits more than COMBO_GAP apart do not chain', () => {
     const s = new MatchStats();
     [0, 50, 100].forEach((f) => s.observe([hit(0)], f));
