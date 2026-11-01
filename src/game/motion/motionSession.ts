@@ -5,8 +5,7 @@ import { closeCamera, openCamera } from '../../motion/camera';
 import { type EngineOutput, MotionEngine } from '../../motion/motionEngine';
 import { type PoseModel, PoseTracker } from '../../motion/poseTracker';
 import type { PoseFrame } from '../../shared/types';
-
-const MODEL_KEY = 'bf.model';
+import { loadSettings } from '../settings';
 
 export type OutputListener = (out: EngineOutput, frame: PoseFrame | null) => void;
 
@@ -14,13 +13,13 @@ type TrackerLike = Pick<PoseTracker, 'start' | 'stop' | 'close'>;
 
 /** Camera and tracker factories, injectable for tests. */
 export type SessionDeps = {
-  openCamera: () => Promise<HTMLVideoElement>;
+  openCamera: (deviceId?: string) => Promise<HTMLVideoElement>;
   closeCamera: (video: HTMLVideoElement | null) => void;
   createTracker: (model: PoseModel) => Promise<TrackerLike>;
 };
 
 const DEFAULT_DEPS: SessionDeps = {
-  openCamera: () => openCamera(),
+  openCamera: (deviceId) => openCamera(deviceId),
   closeCamera,
   createTracker: (model) => PoseTracker.create(model),
 };
@@ -44,12 +43,16 @@ export class MotionSession {
   lastOutAt: number | null = null;
   calibration: Calibration | null = loadCalibration();
   private tracker: TrackerLike | null = null;
+  private trackerModel: PoseModel | null = null;
   private active = false;
   private wanted = false;
   private starting: Promise<void> | null = null;
   private listeners = new Set<OutputListener>();
 
-  constructor(private readonly deps: SessionDeps = DEFAULT_DEPS) {
+  constructor(
+    private readonly deps: SessionDeps = DEFAULT_DEPS,
+    private readonly storage: Storage = localStorage,
+  ) {
     this.engine.setCalibration(this.calibration);
   }
 
@@ -57,16 +60,21 @@ export class MotionSession {
     return this.active;
   }
 
-  /** Opens the camera and starts pose tracking (the model is loaded once). Throws CameraError when access fails. */
+  /** Opens the chosen camera and starts pose tracking; the model is (re)loaded only when the setting changed. Throws CameraError when access fails. */
   start(): Promise<void> {
     this.wanted = true;
     if (this.active) return Promise.resolve();
     this.starting ??= (async () => {
       try {
-        this.video ??= await this.deps.openCamera();
+        const settings = loadSettings(this.storage);
+        this.video ??= await this.deps.openCamera(settings.cameraId ?? undefined);
+        if (this.tracker && this.trackerModel !== settings.model) {
+          this.tracker.close();
+          this.tracker = null;
+        }
         if (!this.tracker) {
-          const model = (localStorage.getItem(MODEL_KEY) as PoseModel | null) ?? 'full';
-          this.tracker = await this.deps.createTracker(model);
+          this.tracker = await this.deps.createTracker(settings.model);
+          this.trackerModel = settings.model;
         }
         if (!this.wanted) {
           this.releaseCamera();
