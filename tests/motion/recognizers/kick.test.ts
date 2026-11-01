@@ -26,4 +26,27 @@ describe('KickRecognizer', () => {
     ]));
     expect(ev.map((e) => e.action)).toEqual(['kick_l']);
   });
+
+  test('still kicks when standing farther or nearer than at calibration (drift)', () => {
+    // calibrated at scale 0.25 / hipY 0.55; the player now appears 6% smaller and a little higher, or 6% bigger
+    for (const at of [{ scale: 0.235, hipY: 0.5 }, { scale: 0.265, hipY: 0.58 }]) {
+      const ev = kickEvents(synthSequence([
+        { t: 0, p: at },
+        { t: 200, p: { ...at, liftL: 0.45 } },
+        { t: 400, p: at },
+        { t: 700, p: at },
+      ]));
+      expect(ev.map((e) => e.action)).toEqual(['kick_l']);
+    }
+  });
+
+  test('a jump (both feet up together) is not a kick', () => {
+    const ev = kickEvents(synthSequence([
+      { t: 0, p: {} },
+      { t: 150, p: { jump: 0.4, liftL: 0.1, liftR: 0.1 } },
+      { t: 300, p: {} },
+      { t: 600, p: {} },
+    ]));
+    expect(ev).toHaveLength(0);
+  });
 });

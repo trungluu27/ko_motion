@@ -3,7 +3,7 @@ import type { MotionConfig } from '../config';
 import type { Features } from '../features';
 import { eventConfidence } from './confidence';
 
-/** Fires when one ankle rises fast while the other foot stays planted and the hips are not rising. */
+/** Fires when one foot rises fast above the other (relative, so standing farther/nearer than at calibration does not matter; a jump lifts both). */
 export class KickRecognizer {
   private fired = false;
   private lastFire = -Infinity;
@@ -16,24 +16,18 @@ export class KickRecognizer {
   update(f: Features, frameId: number): ActionEvent | null {
     const c = this.cfg.kick;
     const s = this.side;
-    const other: Side = s === 'l' ? 'r' : 'l';
     if (this.fired) {
-      if (f.ankleLift[s] < c.liftOff) this.fired = false;
+      if (f.footRaise[s] < c.liftOff) this.fired = false;
       return null;
     }
-    const triggered =
-      f.ankleLift[s] > c.liftOn &&
-      f.ankleLift[other] < c.otherFootMax &&
-      f.ankleLiftVel[s] > c.velOn &&
-      f.hipDy > -c.hipRiseMax &&
-      f.t - this.lastFire >= c.refractoryMs;
+    const triggered = f.footRaise[s] > c.liftOn && f.footRaiseVel[s] > c.velOn && f.t - this.lastFire >= c.refractoryMs;
     if (!triggered) return null;
     this.fired = true;
     this.lastFire = f.t;
     const vis = s === 'l' ? f.vis.legL : f.vis.legR;
     return {
       action: s === 'l' ? 'kick_l' : 'kick_r',
-      confidence: eventConfidence(vis, f.ankleLiftVel[s], c.velOn, this.cfg.event),
+      confidence: eventConfidence(vis, f.footRaiseVel[s], c.velOn, this.cfg.event),
       t: f.t,
       frameId,
     };

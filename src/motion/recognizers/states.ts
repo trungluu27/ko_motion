@@ -37,6 +37,7 @@ export class StateRecognizer {
   private crouch: HeldSwitch;
   private dodge: -1 | 0 | 1 = 0;
   private move: -1 | 0 | 1 = 0;
+  private lastFootUp = -Infinity;
 
   constructor(private readonly cfg: MotionConfig) {
     this.block = new HeldSwitch(cfg.block.holdMs, cfg.block.releaseMs);
@@ -62,7 +63,12 @@ export class StateRecognizer {
       this.move = 0;
     }
 
-    if (this.dodge === 0) {
+    // kicking tips the torso: no dodge while a foot is up or shortly after
+    if (Math.max(f.footRaise.l, f.footRaise.r) > this.cfg.kick.liftOff) this.lastFootUp = f.t;
+    const kicking = f.t - this.lastFootUp < d.kickGuardMs;
+    if (kicking) {
+      this.dodge = 0;
+    } else if (this.dodge === 0) {
       if (Math.abs(f.lean) > d.leanOnDeg && Math.abs(f.hipDx) < d.hipDxMax) this.dodge = sign(f.lean);
     } else if (Math.abs(f.lean) < d.leanOffDeg || Math.abs(f.hipDx) >= d.hipDxMax) {
       this.dodge = 0;
@@ -76,5 +82,6 @@ export class StateRecognizer {
     this.crouch.reset();
     this.dodge = 0;
     this.move = 0;
+    this.lastFootUp = -Infinity;
   }
 }
