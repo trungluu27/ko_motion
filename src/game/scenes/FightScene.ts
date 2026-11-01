@@ -16,6 +16,8 @@ import { hudModel } from '../render/hudModel';
 import { poseFor } from '../render/pose';
 import { Sfx } from '../render/sfx';
 import { loadSettings, saveSettings } from '../settings';
+import { MatchStats } from '../stats';
+import type { ResultData } from './ResultScene';
 import { OPPONENT_COLOR, PLAYER_COLOR, drawFighter } from '../render/stickFighter';
 import { WebcamLayer } from '../render/webcamLayer';
 import { FighterSprite, type SpriteMeta } from '../render/fighterSprite';
@@ -27,6 +29,8 @@ import { TrackingPause, effectiveTracking } from '../trackingPause';
 import { VideoRecorder, downloadBlob, recordingFilename } from '../../recording/videoRecorder';
 import { ActionLabelTimer } from '../../view/webcamPanel';
 
+/** Ticks between the match result and the result screen: the KO and the victory pose play out first. */
+const RESULT_DELAY = 150;
 const GAME_KEYS = new Set(['Escape', 'KeyP', 'KeyA', 'KeyD', 'KeyS', 'KeyW', 'KeyJ', 'KeyK', 'KeyU', 'KeyI', 'Space', 'KeyQ', 'KeyE', 'F3']);
 type Opponent = Difficulty | 'dummy';
 const FIGHTER_KEYS = ['fighter_a', 'fighter_b'] as const;
@@ -59,6 +63,7 @@ export class FightScene extends Phaser.Scene {
   private failedAssets = new Set<string>();
   private simTicks = 0;
   private sinceResult = 0;
+  private stats = new MatchStats();
   private fighters!: Phaser.GameObjects.Graphics;
   private effects!: Effects;
   private hud!: Hud;
@@ -267,6 +272,7 @@ export class FightScene extends Phaser.Scene {
   private restart(): void {
     this.match = createMatch({ extraStartup: [0, telegraphFor(this.control)] });
     this.sinceResult = 0;
+    this.stats = new MatchStats();
     this.intent = new IntentBuilder();
     this.motion.clear();
     this.pause.reset();
@@ -329,6 +335,7 @@ export class FightScene extends Phaser.Scene {
         const keys = this.intent.next();
         const player = body ? mergeInputs(this.motion.next(now), keys) : keys;
         stepMatch(this.match, [player, this.opponentInput.next(this.match)]);
+        this.stats.observe(this.match.events, this.match.frame);
         this.simTicks++;
         if (this.match.result) this.sinceResult++;
         this.sprites?.forEach((sp, j) => sp.tick(this.match.fighters[j], this.match.events));
@@ -337,6 +344,12 @@ export class FightScene extends Phaser.Scene {
           this.sfx.play(e);
         }
       }
+    }
+
+    if (this.match.result && this.opponent !== 'dummy' && this.sinceResult >= RESULT_DELAY) {
+      const data: ResultData = { stats: this.stats.snapshot(), result: this.match.result, launch: this.launch(), control: this.control };
+      this.scene.start('result', data);
+      return;
     }
 
     this.fighters.clear();
