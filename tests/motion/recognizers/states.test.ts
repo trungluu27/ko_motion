@@ -55,6 +55,18 @@ describe('StateRecognizer', () => {
     expect(stateAt(run(100, () => ({ lean: -20 })), 100).dodge).toBe(-1);
   });
 
+  test('leaning back during a kick is not a dodge, during or right after it', () => {
+    // the torso tips back as the leg rises (both reach their peak at 200 ms), stays tipped while the leg comes
+    // down (400 ms) and for 200 ms after the foot is back
+    const rows = run(900, (t) => ({ lean: t < 200 ? (25 * t) / 200 : t < 600 ? 25 : 0, liftR: t < 200 ? (0.45 * t) / 200 : t < 400 ? 0.45 * (1 - (t - 200) / 200) : 0 }));
+    expect(rows.filter(([t]) => t <= 600).some(([, st]) => st.dodge !== 0)).toBe(false);
+  });
+
+  test('a lean long after a kick dodges again', () => {
+    const rows = run(1300, (t) => ({ lean: t > 900 ? 20 : 0, liftR: t < 200 ? 0.45 : 0 }));
+    expect(stateAt(rows, 1300).dodge).toBe(1);
+  });
+
   test('leaning while the hips shift is movement, not a dodge', () => {
     const s = stateAt(run(100, () => ({ lean: 20, ...shiftRight(0.6) })), 100);
     expect(s.dodge).toBe(0);

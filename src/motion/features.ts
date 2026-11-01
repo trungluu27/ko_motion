@@ -30,6 +30,13 @@ export type Features = {
   ankleLift: LR<number>;
   /** per second */
   ankleLiftVel: LR<number>;
+  /**
+   * Height of this foot above the other one (minus their calibrated offset), in current leg lengths.
+   * Unlike ankleLift it does not drift when the player stands farther, nearer or higher than at calibration.
+   */
+  footRaise: LR<number>;
+  /** per second */
+  footRaiseVel: LR<number>;
   vis: { armL: number; armR: number; legL: number; legR: number; torso: number };
 };
 
@@ -37,7 +44,7 @@ const ARM = { l: [LM.L_SHOULDER, LM.L_ELBOW, LM.L_WRIST], r: [LM.R_SHOULDER, LM.
 const LEG = { l: [LM.L_HIP, LM.L_KNEE, LM.L_ANKLE], r: [LM.R_HIP, LM.R_KNEE, LM.R_ANKLE] } as const;
 const TORSO = [LM.L_SHOULDER, LM.R_SHOULDER, LM.L_HIP, LM.R_HIP] as const;
 
-type Sample = { t: number; armExt: LR<number>; ankleLift: LR<number> };
+type Sample = { t: number; armExt: LR<number>; ankleLift: LR<number>; footRaise: LR<number> };
 
 const lr = <T>(fn: (s: Side) => T): LR<T> => ({ l: fn('l'), r: fn('r') });
 const meanVis = (f: PoseFrame, idx: readonly number[]) => idx.reduce((a, i) => a + f.image[i].visibility, 0) / idx.length;
@@ -67,6 +74,15 @@ export class FeatureExtractor {
     const armExt = lr((s) => dist(w[ARM[s][0]], w[ARM[s][2]]) / (cal.upperArm[s] + cal.foreArm[s]));
     const ankleY = { l: cal.ankleYL, r: cal.ankleYR };
     const ankleLift = lr((s) => (ankleY[s] - im[LEG[s][2]].y) / cal.legPx);
+    // relative to the other foot and to the body's current size: immune to standing-distance drift
+    const size = dist2d(shoulders, hip) / cal.torsoPx;
+    const otherSide = (s: Side): Side => (s === 'l' ? 'r' : 'l');
+    const footRaise = lr((s) => {
+      const o = otherSide(s);
+      const gap = im[LEG[o][2]].y - im[LEG[s][2]].y;
+      const calGap = ankleY[o] - ankleY[s];
+      return size > 0 ? (gap - calGap * size) / (cal.legPx * size) : 0;
+    });
 
     const ref = this.history.length >= 2 ? this.history[this.history.length - 2] : this.history[0];
     const dtRef = ref ? (f.t - ref.t) / 1000 : 0;
@@ -89,6 +105,8 @@ export class FeatureExtractor {
       wristInStrikeZone: lr((s) => im[ARM[s][2]].y < zoneBottom && im[ARM[s][2]].y > zoneTop),
       ankleLift,
       ankleLiftVel: vel(ankleLift, (s) => s.ankleLift),
+      footRaise,
+      footRaiseVel: vel(footRaise, (s) => s.footRaise),
       vis: {
         armL: meanVis(f, ARM.l),
         armR: meanVis(f, ARM.r),
@@ -98,7 +116,7 @@ export class FeatureExtractor {
       },
     };
 
-    this.history.push({ t: f.t, armExt, ankleLift });
+    this.history.push({ t: f.t, armExt, ankleLift, footRaise });
     if (this.history.length > 3) this.history.shift();
     return features;
   }

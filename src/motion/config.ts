@@ -5,11 +5,12 @@ export type MotionConfig = {
   calibration: { frames: number; hipStableMax: number; recalibrateRatio: number };
   /** fires on a quick elbow straightening (relative to the last riseWindowMs) with visible reach */
   punch: { elbowOnDeg: number; elbowRiseDeg: number; riseWindowMs: number; reachOn: number; extOn: number; elbowOffDeg: number; refractoryMs: number };
-  kick: { liftOn: number; otherFootMax: number; velOn: number; liftOff: number; hipRiseMax: number; refractoryMs: number };
+  kick: { liftOn: number; velOn: number; liftOff: number; refractoryMs: number };
   jump: { riseOn: number; startMax: number; windowMs: number; landOff: number; refractoryMs: number };
   block: { wristNoseMax: number; wristNoseSumMax: number; holdMs: number; releaseMs: number; armOutElbowDeg: number };
   crouch: { dropOn: number; holdMs: number; dropOff: number };
-  dodge: { leanOnDeg: number; hipDxMax: number; leanOffDeg: number };
+  /** kickGuardMs: no dodge while a foot is up or this long after (kicking tips the torso) */
+  dodge: { leanOnDeg: number; hipDxMax: number; leanOffDeg: number; kickGuardMs: number };
   move: { on: number; off: number };
   event: { minConfidence: number; baseConfidence: number };
 };
@@ -19,11 +20,11 @@ export const DEFAULT_CONFIG: MotionConfig = {
   tracking: { visibilityMin: 0.5, edgeMargin: 0.02, resumeDebounceMs: 300, gapResetMs: 250 },
   calibration: { frames: 45, hipStableMax: 0.03, recalibrateRatio: 0.25 },
   punch: { elbowOnDeg: 130, elbowRiseDeg: 30, riseWindowMs: 400, reachOn: 0.5, extOn: 0.95, elbowOffDeg: 115, refractoryMs: 180 },
-  kick: { liftOn: 0.35, otherFootMax: 0.1, velOn: 1.5, liftOff: 0.15, hipRiseMax: 0.06, refractoryMs: 350 },
+  kick: { liftOn: 0.35, velOn: 1.5, liftOff: 0.15, refractoryMs: 350 },
   jump: { riseOn: 0.12, startMax: 0.03, windowMs: 300, landOff: 0.05, refractoryMs: 500 },
   block: { wristNoseMax: 0.55, wristNoseSumMax: 0.7, holdMs: 150, releaseMs: 120, armOutElbowDeg: 120 },
   crouch: { dropOn: 0.25, holdMs: 120, dropOff: 0.15 },
-  dodge: { leanOnDeg: 15, hipDxMax: 0.3, leanOffDeg: 8 },
+  dodge: { leanOnDeg: 15, hipDxMax: 0.3, leanOffDeg: 8, kickGuardMs: 300 },
   move: { on: 0.45, off: 0.3 },
   event: { minConfidence: 0.5, baseConfidence: 0.6 },
 };
