@@ -36,7 +36,46 @@ const STATUS_TEXT: Record<TrackingStatus, string> = {
   ok: 'OK',
 };
 
+/** A replacement for the room behind the player (spec webcam-background 2). */
+export type PanelBackground = {
+  kind: 'blur' | 'neon' | 'studio';
+  /** the player cut out of the video, null when nobody is tracked */
+  person: CanvasImageSource | null;
+  /** the neon backdrop image */
+  image?: CanvasImageSource | null;
+};
+
+/** Draws an image scaled to cover the rect (cropping the overflow), unmirrored. */
+function drawCover(ctx: CanvasRenderingContext2D, img: CanvasImageSource & { width: number; height: number }, rect: Rect): void {
+  const k = Math.max(rect.w / img.width, rect.h / img.height);
+  ctx.drawImage(img, rect.x + (rect.w - img.width * k) / 2, rect.y + (rect.h - img.height * k) / 2, img.width * k, img.height * k);
+}
+
+function drawStudio(ctx: CanvasRenderingContext2D, rect: Rect): void {
+  const g = ctx.createLinearGradient(rect.x, rect.y, rect.x, rect.y + rect.h);
+  g.addColorStop(0, '#0f172a');
+  g.addColorStop(1, '#020617');
+  ctx.fillStyle = g;
+  ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+  ctx.strokeStyle = 'rgba(34,211,238,0.08)';
+  ctx.lineWidth = 1;
+  for (let x = rect.x; x <= rect.x + rect.w; x += 40) {
+    ctx.beginPath();
+    ctx.moveTo(x, rect.y);
+    ctx.lineTo(x, rect.y + rect.h);
+    ctx.stroke();
+  }
+  for (let y = rect.y; y <= rect.y + rect.h; y += 40) {
+    ctx.beginPath();
+    ctx.moveTo(rect.x, y);
+    ctx.lineTo(rect.x + rect.w, y);
+    ctx.stroke();
+  }
+}
+
 export type PanelOptions = {
+  /** replace the room behind the player; absent = the real camera */
+  background?: PanelBackground;
   /** size of the source frame when there is no video (session replay) */
   sourceSize?: { w: number; h: number };
   /** large instruction text, e.g. guided capture prompts */
@@ -95,12 +134,24 @@ export function drawWebcamPanel(
   ctx.clip();
   ctx.fillStyle = '#020617';
   ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-  if (video && video.videoWidth) {
+  /** draws a video-sized source mirrored with the same projection as the landmarks */
+  const mirrored = (src: CanvasImageSource, filter = 'none') => {
     ctx.save();
     ctx.translate(rect.x + rect.w, rect.y);
     ctx.scale(-1, 1);
-    ctx.drawImage(video, -proj.offX, -proj.offY, srcW * proj.scale, srcH * proj.scale);
+    ctx.filter = filter;
+    ctx.drawImage(src, -proj.offX, -proj.offY, srcW * proj.scale, srcH * proj.scale);
     ctx.restore();
+  };
+  const bg = opts.background;
+  if (!bg) {
+    if (video && video.videoWidth) mirrored(video);
+  } else {
+    const img = bg.image as (CanvasImageSource & { width: number; height: number }) | null | undefined;
+    if (bg.kind === 'blur' && video && video.videoWidth) mirrored(video, 'blur(14px) brightness(0.8)');
+    else if (bg.kind === 'neon' && img && img.width) drawCover(ctx, img, rect);
+    else drawStudio(ctx, rect);
+    if (bg.person) mirrored(bg.person);
   }
 
   if (frame) {

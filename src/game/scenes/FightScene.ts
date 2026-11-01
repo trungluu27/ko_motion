@@ -16,7 +16,8 @@ import { hudModel } from '../render/hudModel';
 import { poseFor } from '../render/pose';
 import { Music } from '../render/music';
 import { Sfx } from '../render/sfx';
-import { loadSettings, saveSettings } from '../settings';
+import { loadSettings, nextBg, saveSettings } from '../settings';
+import { BG_LABEL } from '../ui/text';
 import { MatchStats } from '../stats';
 import { trainingTick } from '../training/dummy';
 import type { ResultData } from './ResultScene';
@@ -33,7 +34,7 @@ import { ActionLabelTimer } from '../../view/webcamPanel';
 
 /** Ticks between the match result and the result screen: the KO and the victory pose play out first. */
 const RESULT_DELAY = 150;
-const GAME_KEYS = new Set(['Escape', 'KeyN', 'KeyP', 'KeyA', 'KeyD', 'KeyS', 'KeyW', 'KeyJ', 'KeyK', 'KeyU', 'KeyI', 'Space', 'KeyQ', 'KeyE', 'F3']);
+const GAME_KEYS = new Set(['Escape', 'KeyB', 'KeyN', 'KeyP', 'KeyA', 'KeyD', 'KeyS', 'KeyW', 'KeyJ', 'KeyK', 'KeyU', 'KeyI', 'Space', 'KeyQ', 'KeyE', 'F3']);
 type Opponent = Difficulty | 'dummy';
 const FIGHTER_KEYS = ['fighter_a', 'fighter_b'] as const;
 const OPPONENT_KEYS: Record<string, Opponent> = { Digit1: 'easy', Digit2: 'normal', Digit3: 'hard', Digit0: 'dummy' };
@@ -188,6 +189,7 @@ export class FightScene extends Phaser.Scene {
       this.pressed.add(e.code);
       if (e.code === 'Escape') this.toMenu();
       if (e.code === 'KeyN') this.toggleMusic();
+      if (e.code === 'KeyB') void this.cycleBackground();
       if (e.code === 'KeyR') this.restart();
       if (e.code === 'KeyC') this.toggleControl();
       if (e.code === 'KeyV') this.cycleView();
@@ -221,11 +223,19 @@ export class FightScene extends Phaser.Scene {
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribe);
     const visit = this.visit;
-    session.start().catch((e: unknown) => {
-      if (visit !== this.visit || !this.sys.isActive()) return;
-      this.toKeyboard();
-      this.showNotice(`📷 ${e instanceof Error ? e.message : String(e)} Đã chuyển về bàn phím.`);
-    });
+    session
+      .start()
+      .then(() => {
+        if (visit !== this.visit || !session.backgroundError) return;
+        this.webcam.background = 'off';
+        this.showNotice(session.backgroundError);
+        session.backgroundError = null;
+      })
+      .catch((e: unknown) => {
+        if (visit !== this.visit || !this.sys.isActive()) return;
+        this.toKeyboard();
+        this.showNotice(`📷 ${e instanceof Error ? e.message : String(e)} Đã chuyển về bàn phím.`);
+      });
   }
 
   /** Records the whole game canvas (webcam + fight) with game sound to a WebM download. */
@@ -257,6 +267,22 @@ export class FightScene extends Phaser.Scene {
     this.control = 'keyboard';
     this.match.fighters[1].extraStartup = telegraphFor('keyboard');
     this.applyLayout();
+  }
+
+  /** B: next webcam background, saved; masks are only computed while one is chosen (spec webcam-background 2). */
+  private async cycleBackground(): Promise<void> {
+    if (this.control !== 'body') return;
+    const bg = nextBg(loadSettings().webcamBg);
+    saveSettings({ ...loadSettings(), webcamBg: bg });
+    this.webcam.background = bg;
+    this.showNotice(`Nền webcam: ${BG_LABEL[bg]} (B)`);
+    try {
+      await MotionSession.get().setBackground(bg);
+    } catch (e) {
+      this.webcam.background = 'off';
+      saveSettings({ ...loadSettings(), webcamBg: 'off' });
+      this.showNotice(`Không thay được nền webcam (${e instanceof Error ? e.message : String(e)}), dùng camera thật.`);
+    }
   }
 
   private toggleMusic(): void {
@@ -321,7 +347,7 @@ export class FightScene extends Phaser.Scene {
     const body = this.control === 'body';
     this.info.setText(
       (body
-        ? `Esc menu · Cơ thể · V hiển thị: ${VIEW_LABEL[this.viewMode]} · C về bàn phím · N nhạc`
+        ? `Esc menu · Cơ thể · V hiển thị: ${VIEW_LABEL[this.viewMode]} · B nền webcam · C về bàn phím · N nhạc`
         : 'Esc menu · A/D đi · W nhảy · S cúi · J/K đấm · U/I đá · Space block · Q/E né · C cơ thể · N nhạc') +
         ` · Đối thủ [1/2/3/0]: ${OPPONENT_LABEL[this.opponent]} · R đấu lại · F3 hiệu năng`,
     );
