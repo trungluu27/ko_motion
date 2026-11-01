@@ -26,6 +26,11 @@ export class Sfx {
     if (this.ctx.state === 'suspended') void this.ctx.resume();
   }
 
+  /** The shared context and master bus (null before the first user gesture), for the music. */
+  audio(): { ctx: AudioContext; master: GainNode } | null {
+    return this.ctx && this.master ? { ctx: this.ctx, master: this.master } : null;
+  }
+
   /** Master volume 0..1 (settings). */
   setVolume(v: number): void {
     this.volume = v;

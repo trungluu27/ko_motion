@@ -14,6 +14,7 @@ import { Effects } from '../render/effects';
 import { Hud } from '../render/hud';
 import { hudModel } from '../render/hudModel';
 import { poseFor } from '../render/pose';
+import { Music } from '../render/music';
 import { Sfx } from '../render/sfx';
 import { loadSettings, saveSettings } from '../settings';
 import { MatchStats } from '../stats';
@@ -32,7 +33,7 @@ import { ActionLabelTimer } from '../../view/webcamPanel';
 
 /** Ticks between the match result and the result screen: the KO and the victory pose play out first. */
 const RESULT_DELAY = 150;
-const GAME_KEYS = new Set(['Escape', 'KeyP', 'KeyA', 'KeyD', 'KeyS', 'KeyW', 'KeyJ', 'KeyK', 'KeyU', 'KeyI', 'Space', 'KeyQ', 'KeyE', 'F3']);
+const GAME_KEYS = new Set(['Escape', 'KeyN', 'KeyP', 'KeyA', 'KeyD', 'KeyS', 'KeyW', 'KeyJ', 'KeyK', 'KeyU', 'KeyI', 'Space', 'KeyQ', 'KeyE', 'F3']);
 type Opponent = Difficulty | 'dummy';
 const FIGHTER_KEYS = ['fighter_a', 'fighter_b'] as const;
 const OPPONENT_KEYS: Record<string, Opponent> = { Digit1: 'easy', Digit2: 'normal', Digit3: 'hard', Digit0: 'dummy' };
@@ -72,6 +73,7 @@ export class FightScene extends Phaser.Scene {
   private hud!: Hud;
   private webcam!: WebcamLayer;
   private sfx = Sfx.get();
+  private music = new Music(Sfx.get());
   private info!: Phaser.GameObjects.Text;
   private overlay!: Phaser.GameObjects.Text;
   private perf!: Phaser.GameObjects.Text;
@@ -161,7 +163,10 @@ export class FightScene extends Phaser.Scene {
     this.recButton.setVisible(VideoRecorder.isAvailable());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       if (this.recorder.recording) void this.toggleRecording();
+      this.music.stop();
     });
+    this.music = new Music(this.sfx);
+    this.music.setEnabled(loadSettings().music);
     this.noticeUntil = this.notice ? performance.now() + 6000 : 0;
     this.applyLayout();
     this.restart();
@@ -172,11 +177,14 @@ export class FightScene extends Phaser.Scene {
   private attachKeyboard(): void {
     const onDown = (e: KeyboardEvent) => {
       this.sfx.unlock();
+      // audio only exists after a user gesture, so the music may start on the first key
+      if (loadSettings().music && !this.music.playing) this.music.start();
       if (GAME_KEYS.has(e.code)) e.preventDefault();
       if (e.repeat) return;
       this.down.add(e.code);
       this.pressed.add(e.code);
       if (e.code === 'Escape') this.toMenu();
+      if (e.code === 'KeyN') this.toggleMusic();
       if (e.code === 'KeyR') this.restart();
       if (e.code === 'KeyC') this.toggleControl();
       if (e.code === 'KeyV') this.cycleView();
@@ -246,6 +254,13 @@ export class FightScene extends Phaser.Scene {
     this.applyLayout();
   }
 
+  private toggleMusic(): void {
+    const music = !loadSettings().music;
+    saveSettings({ ...loadSettings(), music });
+    this.music.setEnabled(music);
+    this.showNotice(music ? '♪ Nhạc nền: bật (N)' : 'Nhạc nền: tắt (N)');
+  }
+
   private toMenu(): void {
     if (this.control === 'body') MotionSession.get().pause();
     this.scene.start('menu');
@@ -301,8 +316,8 @@ export class FightScene extends Phaser.Scene {
     const body = this.control === 'body';
     this.info.setText(
       (body
-        ? `Esc menu · Cơ thể · V hiển thị: ${VIEW_LABEL[this.viewMode]} · C về bàn phím`
-        : 'Esc menu · A/D đi · W nhảy · S cúi · J/K đấm · U/I đá · Space block · Q/E né · C cơ thể') +
+        ? `Esc menu · Cơ thể · V hiển thị: ${VIEW_LABEL[this.viewMode]} · C về bàn phím · N nhạc`
+        : 'Esc menu · A/D đi · W nhảy · S cúi · J/K đấm · U/I đá · Space block · Q/E né · C cơ thể · N nhạc') +
         ` · Đối thủ [1/2/3/0]: ${OPPONENT_LABEL[this.opponent]} · R đấu lại · F3 hiệu năng`,
     );
   }

@@ -4,6 +4,7 @@ import type { ActionEvent } from '../../shared/types';
 import { keyboardControl } from '../input/keyboardMap';
 import type { LaunchData } from '../launch';
 import { MotionSession } from '../motion/motionSession';
+import { Music } from '../render/music';
 import { Sfx } from '../render/sfx';
 import { WebcamLayer } from '../render/webcamLayer';
 import { loadSettings } from '../settings';
@@ -63,8 +64,12 @@ export class DrillScene extends Phaser.Scene {
       });
       this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribe);
     }
+    const music = new Music(Sfx.get());
+    music.setEnabled(loadSettings().music);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => music.stop());
     const onDown = (e: KeyboardEvent) => {
       Sfx.get().unlock();
+      if (loadSettings().music && !music.playing) music.start();
       if (e.repeat) return;
       this.down.add(e.code);
       this.pressed.add(e.code);
