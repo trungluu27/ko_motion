@@ -14,5 +14,5 @@ export const seenAt = (x: number, action: Action = { kind: 'idle' }): Seen => ({
 
 export function ctx(over: { self?: Partial<Fighter>; seen?: Seen | null; frame?: number; params?: DifficultyParams; mult?: Multipliers } = {}): BrainContext {
   const self = { ...createMatch().fighters[1], x: 600, facing: -1 as const, ...over.self };
-  return { self, seen: over.seen === undefined ? seenAt(500) : over.seen, frame: over.frame ?? 0, params: over.params ?? params(), mult: over.mult ?? { ...NEUTRAL } };
+  return { self, seen: over.seen === undefined ? seenAt(500) : over.seen, reactionFrames: 0, frame: over.frame ?? 0, params: over.params ?? params(), mult: over.mult ?? { ...NEUTRAL } };
 }

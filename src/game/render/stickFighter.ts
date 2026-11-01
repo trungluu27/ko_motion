@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { MOVES } from '../sim/moves';
+import { telegraphing } from '../sim/match';
 import type { Fighter } from '../sim/types';
 import type { ArenaView } from '../layout';
 import type { Limb, Pose } from './pose';
@@ -61,7 +61,7 @@ export function drawFighter(g: Phaser.GameObjects.Graphics, f: Fighter, pose: Po
   }
 
   const a = f.action;
-  const telegraph = a.kind === 'attack' && f.extraStartup > 0 && a.frame < MOVES[a.move].startup + f.extraStartup && a.frame % 6 < 3;
+  const telegraph = telegraphing(f) && a.kind === 'attack' && a.frame % 6 < 3;
   const tint = (part: 'armFront' | 'armBack' | 'legFront' | 'legBack') => {
     if (!telegraph || a.kind !== 'attack') return color;
     const owner = { punch_l: 'armFront', punch_r: 'armBack', kick_l: 'legFront', kick_r: 'legBack', special: 'armFront' }[a.move];

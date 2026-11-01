@@ -10,13 +10,15 @@ export class AiInput {
   private readonly perception: Perception;
   private readonly stats = new PlayerStats();
   private readonly brain: AiBrain;
+  private readonly reactionFrames: number;
 
   constructor(
     readonly difficulty: Difficulty,
     private readonly self: 0 | 1,
     seed = 1,
   ) {
-    this.perception = new Perception(msToFrames(DIFFICULTIES[difficulty].reactionMs));
+    this.reactionFrames = msToFrames(DIFFICULTIES[difficulty].reactionMs);
+    this.perception = new Perception(this.reactionFrames);
     this.brain = new AiBrain(createRng(seed));
   }
 
@@ -29,6 +31,7 @@ export class AiInput {
     return this.brain.next({
       self: m.fighters[this.self],
       seen: this.perception.seen(),
+      reactionFrames: this.reactionFrames,
       frame: m.frame,
       params,
       mult: params.adaptive ? this.stats.multipliers(m.frame) : { ...NEUTRAL },

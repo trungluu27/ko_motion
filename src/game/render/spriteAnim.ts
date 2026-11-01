@@ -1,5 +1,5 @@
 import { DODGE_INVULN, DODGE_RECOVERY, JUMP_FRAMES } from '../sim/constants';
-import { MOVES } from '../sim/moves';
+import { startupOf } from '../sim/match';
 import type { Fighter, MatchResult, MoveId } from '../sim/types';
 
 export type ClipName =
@@ -96,7 +96,7 @@ export function spriteFrame(f: Fighter, ctx: AnimCtx): { clip: ClipName; index: 
       return at(c, 'knockdown', ctx.actionTicks / 2);
     case 'attack': {
       const clip = a.move as ClipName;
-      const startup = MOVES[a.move].startup + f.extraStartup;
+      const startup = startupOf(f, a);
       const impact = c[clip].impact;
       // the startup (stretched over any telegraph) reaches the impact sprite exactly on the first active frame
       if (a.frame < startup) return at(c, clip, (a.frame * impact) / startup);

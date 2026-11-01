@@ -5,7 +5,7 @@ import {
 } from './constants';
 import { HISTORY_LIMIT, comboByName, matchCombo } from './combo';
 import { MOVES } from './moves';
-import type { ComboName, Fighter, HistoryToken, Match, MoveId, TickInput } from './types';
+import type { Action, ComboName, Fighter, HistoryToken, Match, MoveId, TickInput } from './types';
 
 function newFighter(x: number, facing: 1 | -1, extraStartup: number): Fighter {
   return {
@@ -36,8 +36,16 @@ function regenStamina(f: Fighter): void {
   f.sinceSpend++;
 }
 
-/** Frames until the move's active window opens, including the fighter's telegraph. */
-const startupOf = (f: Fighter, move: MoveId) => MOVES[move].startup + f.extraStartup;
+/** Frames until the move's active window opens, including the telegraph recorded for this attack. */
+export const startupOf = (f: Fighter, a: Extract<Action, { kind: 'attack' }>) => MOVES[a.move].startup + (a.telegraph ?? f.extraStartup);
+
+/** True during an attack's startup when it carries a telegraph (the NPC's warning glow). */
+export const telegraphing = (f: Fighter) =>
+  f.action.kind === 'attack' && (f.action.telegraph ?? f.extraStartup) > 0 && f.action.frame < startupOf(f, f.action);
+
+/** True while the fighter is recovering from an attack (it can neither block nor dodge). */
+export const inRecovery = (f: Fighter) =>
+  f.action.kind === 'attack' && f.action.frame >= startupOf(f, f.action) + MOVES[f.action.move].active;
 
 /** Advances timed actions; returns to idle when they finish. */
 function advanceAction(f: Fighter): void {
@@ -48,7 +56,7 @@ function advanceAction(f: Fighter): void {
   } else if (a.kind === 'attack') {
     a.frame++;
     const d = MOVES[a.move];
-    if (a.frame >= startupOf(f, a.move) + d.active + d.recovery) f.action = { kind: 'idle' };
+    if (a.frame >= startupOf(f, a) + d.active + d.recovery) f.action = { kind: 'idle' };
   } else if (a.kind === 'dodge') {
     a.frame++;
     if (a.frame >= DODGE_INVULN + DODGE_RECOVERY) f.action = { kind: 'idle' };
@@ -88,7 +96,9 @@ function startAttack(m: Match, i: 0 | 1, move: MoveId): boolean {
   f.stamina -= d.stamina;
   if (d.stamina > 0) f.sinceSpend = 0;
   remember(m, f, move);
-  f.action = { kind: 'attack', move, frame: 0, hasHit: false, evaded: false, combo: matchCombo(f.history)?.name ?? null };
+  // punishing a recovering opponent needs no warning: they could not block or dodge it anyway
+  const telegraph = inRecovery(m.fighters[1 - i]) ? 0 : f.extraStartup;
+  f.action = { kind: 'attack', move, frame: 0, hasHit: false, evaded: false, combo: matchCombo(f.history)?.name ?? null, telegraph };
   m.events.push({ type: 'attack', fighter: i, move });
   return true;
 }
@@ -146,7 +156,7 @@ function collectHits(m: Match): Hit[] {
     const a = atk.action;
     if (a.kind !== 'attack' || a.hasHit) return;
     const d = MOVES[a.move];
-    const start = startupOf(atk, a.move);
+    const start = startupOf(atk, a);
     if (a.frame < start || a.frame >= start + d.active) return;
     const def = m.fighters[1 - i];
     const reach = (def.x - atk.x) * atk.facing;
