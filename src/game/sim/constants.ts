@@ -28,3 +28,6 @@ export const SPECIAL_CANCEL_FRAMES = 15;
 export const COMBO_GAP = 42;
 export const COUNTER_SPAN = 60;
 export const NPC_TELEGRAPH = 24;
+/** Keyboard input has no body latency, so the NPC's warning can be shorter (spec ai-difficulty 2.2). */
+export const NPC_TELEGRAPH_KEYBOARD = 12;
+export const telegraphFor = (control: 'keyboard' | 'body'): number => (control === 'body' ? NPC_TELEGRAPH : NPC_TELEGRAPH_KEYBOARD);

@@ -1,6 +1,6 @@
 import type Phaser from 'phaser';
 import type { ArenaView } from '../layout';
-import { MOVES } from '../sim/moves';
+import { telegraphing } from '../sim/match';
 import type { Fighter, MatchResult, MoveId, SimEvent } from '../sim/types';
 import { type ClipInfo, WalkTracker, clipInfoFromMeta, jumpLiftPx, spriteFrame } from './spriteAnim';
 
@@ -74,10 +74,10 @@ export class FighterSprite {
     this.shadow.setPosition(x, view.groundY).setScale(view.bodyScale * (1 - 0.4 * lift));
 
     const a = f.action;
-    const telegraph = a.kind === 'attack' && f.extraStartup > 0 && a.frame < MOVES[a.move].startup + f.extraStartup;
+    const telegraph = telegraphing(f);
     if (this.flash > 0) this.sprite.setTintFill(0xffffff);
     // a solid yellow blink: multiplying the tint barely shows on dark clothes against the night stage
-    else if (telegraph && a.frame % 6 < 3) this.sprite.setTintFill(0xfde047);
+    else if (telegraph && a.kind === 'attack' && a.frame % 6 < 3) this.sprite.setTintFill(0xfde047);
     else this.sprite.clearTint();
   }
 

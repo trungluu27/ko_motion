@@ -18,7 +18,7 @@ import { OPPONENT_COLOR, PLAYER_COLOR, drawFighter } from '../render/stickFighte
 import { WebcamLayer } from '../render/webcamLayer';
 import { FighterSprite, type SpriteMeta } from '../render/fighterSprite';
 import { Stage, type StageInfo } from '../render/stage';
-import { NPC_TELEGRAPH } from '../sim/constants';
+import { telegraphFor } from '../sim/constants';
 import { createMatch, stepMatch } from '../sim/match';
 import type { Match, TickInput } from '../sim/types';
 import { TrackingPause, effectiveTracking } from '../trackingPause';
@@ -187,8 +187,7 @@ export class FightScene extends Phaser.Scene {
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribe);
     session.start().catch((e: unknown) => {
-      this.control = 'keyboard';
-      this.applyLayout();
+      this.toKeyboard();
       this.showNotice(`📷 ${e instanceof Error ? e.message : String(e)} Đã chuyển về bàn phím.`);
     });
   }
@@ -211,11 +210,17 @@ export class FightScene extends Phaser.Scene {
     if (this.control === 'keyboard') {
       this.scene.start('calibration');
     } else {
-      this.control = 'keyboard';
       MotionSession.get().pause();
-      this.applyLayout();
+      this.toKeyboard();
       this.updateInfo();
     }
+  }
+
+  /** Back to keyboard control; the NPC's warning shortens from the next attack on (spec ai-difficulty 2.2). */
+  private toKeyboard(): void {
+    this.control = 'keyboard';
+    this.match.fighters[1].extraStartup = telegraphFor('keyboard');
+    this.applyLayout();
   }
 
   private cycleView(): void {
@@ -243,7 +248,7 @@ export class FightScene extends Phaser.Scene {
   }
 
   private restart(): void {
-    this.match = createMatch({ extraStartup: [0, NPC_TELEGRAPH] });
+    this.match = createMatch({ extraStartup: [0, telegraphFor(this.control)] });
     this.sinceResult = 0;
     this.intent = new IntentBuilder();
     this.motion.clear();

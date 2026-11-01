@@ -21,7 +21,11 @@ export type Action =
   | { kind: 'block' }
   | { kind: 'crouch' }
   | { kind: 'ko' }
-  | { kind: 'attack'; move: MoveId; frame: number; hasHit: boolean; evaded: boolean; combo: ComboName | null }
+  | {
+      kind: 'attack'; move: MoveId; frame: number; hasHit: boolean; evaded: boolean; combo: ComboName | null;
+      /** telegraph frames recorded when the attack started; absent means the fighter's extraStartup */
+      telegraph?: number;
+    }
   | { kind: 'dodge'; frame: number }
   | { kind: 'jump'; frame: number }
   | { kind: 'hitstun'; frames: number }

@@ -1,4 +1,5 @@
 import { JUMP_FRAMES } from '../sim/constants';
+import { startupOf } from '../sim/match';
 import { MOVES } from '../sim/moves';
 import type { Fighter, MoveId } from '../sim/types';
 
@@ -59,7 +60,7 @@ export function poseFor(f: Fighter): Pose {
   switch (a.kind) {
     case 'attack': {
       const d = MOVES[a.move];
-      const start = d.startup + f.extraStartup;
+      const start = startupOf(f, a);
       const k = a.frame < start ? a.frame / start : a.frame < start + d.active ? 1 : 1 - (a.frame - start - d.active) / d.recovery;
       return blend(GUARD, IMPACT[a.move], Math.max(0, Math.min(1, k)));
     }
