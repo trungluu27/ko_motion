@@ -5,11 +5,12 @@ import { CameraError, closeCamera, openCamera } from '../../motion/camera';
 import { type EngineOutput, MotionEngine } from '../../motion/motionEngine';
 import { type PoseModel, PoseTracker } from '../../motion/poseTracker';
 import type { PoseFrame } from '../../shared/types';
-import { loadSettings } from '../settings';
+import { type WebcamBg, loadSettings } from '../settings';
+import { type Alpha, PersonMatte } from '../../view/personMatte';
 
 export type OutputListener = (out: EngineOutput, frame: PoseFrame | null) => void;
 
-type TrackerLike = Pick<PoseTracker, 'start' | 'stop' | 'close'>;
+type TrackerLike = Pick<PoseTracker, 'start' | 'stop' | 'close'> & Partial<Pick<PoseTracker, 'setMasks'>>;
 
 /** Camera and tracker factories, injectable for tests. */
 export type SessionDeps = {
@@ -36,6 +37,11 @@ export class MotionSession {
   readonly engine = new MotionEngine();
   readonly trackingFps = new FpsCounter();
   readonly latency = new LatencyStats();
+  /** the player cut out of the latest tracked frame (only while a webcam background is chosen) */
+  readonly matte = new PersonMatte();
+  private background: WebcamBg = 'off';
+  /** set when the chosen background could not be applied; the scene shows it once and clears it */
+  backgroundError: string | null = null;
   video: HTMLVideoElement | null = null;
   lastFrame: PoseFrame | null = null;
   lastOut: EngineOutput | null = null;
@@ -82,6 +88,10 @@ export class MotionSession {
           this.releaseCamera();
           return;
         }
+        // a missing mask only costs the background, never body control
+        await this.applyBackground(settings.webcamBg).catch((e: unknown) => {
+          this.backgroundError = `Không thay được nền webcam (${e instanceof Error ? e.message : String(e)}), dùng camera thật.`;
+        });
         this.tracker.start(this.video, this.onPose);
         this.active = true;
       } catch (e) {
@@ -92,6 +102,23 @@ export class MotionSession {
       }
     })();
     return this.starting;
+  }
+
+  /** Chooses the webcam background; anything but 'off' needs the tracker's person mask. Rejects when masks are unavailable. */
+  async setBackground(bg: WebcamBg): Promise<void> {
+    await this.applyBackground(bg);
+  }
+
+  private async applyBackground(bg: WebcamBg): Promise<void> {
+    this.background = bg;
+    if (bg === 'off') this.matte.clear();
+    try {
+      await this.tracker?.setMasks?.(bg !== 'off');
+    } catch (e) {
+      this.background = 'off';
+      this.matte.clear();
+      throw e;
+    }
   }
 
   /** The camera picked in the settings, or the default one when that camera is gone (unplugged). */
@@ -120,7 +147,9 @@ export class MotionSession {
     this.lastOutAt = null;
   }
 
-  private readonly onPose = (frame: PoseFrame | null): void => {
+  private readonly onPose = (frame: PoseFrame | null, _inferMs = 0, mask: Alpha | null = null): void => {
+    if (this.background !== 'off' && mask && frame && this.video) this.matte.update(this.video, mask);
+    else this.matte.clear();
     const now = performance.now();
     this.lastOutAt = now;
     this.trackingFps.tick(now);

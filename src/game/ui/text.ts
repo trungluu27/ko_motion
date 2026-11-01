@@ -1,3 +1,7 @@
+import type { WebcamBg } from '../settings';
+
+export const BG_LABEL: Record<WebcamBg, string> = { off: 'Camera thật', blur: 'Làm mờ phòng', neon: 'Phố neon', studio: 'Studio tối' };
+
 /** Shared copy for the safety, help and calibration screens (spec phase5 7). */
 export const SAFETY_LINES = [
   'Chừa khoảng trống ít nhất 2 × 2 m, dọn vật cứng và tránh xa cạnh bàn.',
@@ -20,7 +24,7 @@ export const KEYBOARD_LINES = [
   'Đầy thanh đặc biệt: bấm J rồi K thật nhanh để ra đòn đặc biệt',
   'Space: block    Q / E: né',
   'Trong trận: Esc menu · R đấu lại · 1/2/3/0 đổi đối thủ · C bàn phím/cơ thể',
-  'V bố cục webcam · P quay video · N nhạc · F3 hiệu năng',
+  'V bố cục webcam · B nền webcam · P quay video · N nhạc · F3 hiệu năng',
 ];
 
 export const BODY_LINES = [

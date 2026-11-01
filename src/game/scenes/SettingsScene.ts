@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { listCameras } from '../../motion/camera';
 import { VIEW_MODES } from '../layout';
 import { Sfx } from '../render/sfx';
-import { type Settings, loadSettings, saveSettings } from '../settings';
+import { type Settings, WEBCAM_BGS, loadSettings, saveSettings } from '../settings';
+import { BG_LABEL } from '../ui/text';
 import { FONT, MenuList } from '../ui/menuList';
 
 const VIEW_LABEL = { split: 'chia đôi', pip: 'webcam góc', game: 'chỉ game' } as const;
@@ -41,6 +42,7 @@ export class SettingsScene extends Phaser.Scene {
         const ids = this.webcams.map((c) => c.id);
         set({ cameraId: cycle(ids, ids.includes(this.s.cameraId) ? this.s.cameraId : null, d) });
       }),
+      row(() => `Nền webcam:  ◀ ${BG_LABEL[this.s.webcamBg]} ▶`, (d) => set({ webcamBg: cycle(WEBCAM_BGS, this.s.webcamBg, d) })),
       row(() => `Model nhận diện:  ◀ ${this.s.model === 'full' ? 'Full (chính xác)' : 'Lite (nhẹ, máy yếu)'} ▶`, () => set({ model: this.s.model === 'full' ? 'lite' : 'full' })),
       row(() => `Âm lượng:  ◀ ${Math.round(this.s.sfxVolume * 100)}% ▶`, (d) => set({ sfxVolume: Math.round(Math.max(0, Math.min(1, this.s.sfxVolume + d * 0.1)) * 10) / 10 })),
       row(() => `Nhạc nền:  ◀ ${this.s.music ? 'Bật' : 'Tắt'} ▶`, () => set({ music: !this.s.music })),

@@ -23,7 +23,7 @@ describe('settings (spec phase5 3)', () => {
     expect(loadSettings(memory())).toEqual(DEFAULT_SETTINGS);
     expect(loadSettings(memory({ 'bf.settings': '{oops' }))).toEqual(DEFAULT_SETTINGS);
     expect(DEFAULT_SETTINGS).toEqual({
-      control: 'keyboard', view: 'split', model: 'full', cameraId: null, sfxVolume: 0.8, music: true, safetyAck: false,
+      control: 'keyboard', view: 'split', model: 'full', cameraId: null, sfxVolume: 0.8, music: true, safetyAck: false, webcamBg: 'off',
     });
   });
 
@@ -131,5 +131,33 @@ describe('review fixes: session restarts and missing cameras', () => {
     await s.start();
     expect(vi.mocked(deps.openCamera).mock.lastCall?.[0]).toBeUndefined();
     expect(s.running).toBe(true);
+  });
+});
+
+describe('webcam background in the session', () => {
+  const deps = (setMasks: (on: boolean) => Promise<void>): SessionDeps => ({
+    openCamera: vi.fn(async () => ({}) as HTMLVideoElement),
+    closeCamera: vi.fn(),
+    createTracker: vi.fn(async () => ({ start: vi.fn(), stop: vi.fn(), close: vi.fn(), setMasks: vi.fn(setMasks) })),
+  });
+
+  test('a chosen background turns the tracker masks on at start', async () => {
+    const st = memory();
+    saveSettings({ ...DEFAULT_SETTINGS, webcamBg: 'neon' }, st);
+    const d = deps(async () => undefined);
+    const s = new MotionSession(d, st);
+    await s.start();
+    const tracker = await vi.mocked(d.createTracker).mock.results[0].value;
+    expect(tracker.setMasks).toHaveBeenCalledWith(true);
+    expect(s.backgroundError).toBeNull();
+  });
+
+  test('masks that cannot be enabled fall back to the real camera without breaking body control', async () => {
+    const st = memory();
+    saveSettings({ ...DEFAULT_SETTINGS, webcamBg: 'blur' }, st);
+    const s = new MotionSession(deps(async () => { throw new Error('no masks'); }), st);
+    await s.start();
+    expect(s.running).toBe(true);
+    expect(s.backgroundError).toMatch(/no masks/);
   });
 });

@@ -1,5 +1,10 @@
 import type { ViewMode } from './layout';
 
+/** What replaces the room behind the player on the webcam panels (spec webcam-background 2). */
+export type WebcamBg = 'off' | 'blur' | 'neon' | 'studio';
+export const WEBCAM_BGS: readonly WebcamBg[] = ['off', 'blur', 'neon', 'studio'];
+export const nextBg = (bg: WebcamBg): WebcamBg => WEBCAM_BGS[(WEBCAM_BGS.indexOf(bg) + 1) % WEBCAM_BGS.length];
+
 export type Settings = {
   control: 'keyboard' | 'body';
   view: ViewMode;
@@ -10,10 +15,11 @@ export type Settings = {
   music: boolean;
   /** the safety screen was acknowledged once */
   safetyAck: boolean;
+  webcamBg: WebcamBg;
 };
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
-  control: 'keyboard', view: 'split', model: 'full', cameraId: null, sfxVolume: 0.8, music: true, safetyAck: false,
+  control: 'keyboard', view: 'split', model: 'full', cameraId: null, sfxVolume: 0.8, music: true, safetyAck: false, webcamBg: 'off',
 });
 
 const KEY = 'bf.settings';
@@ -52,6 +58,7 @@ export function loadSettings(storage: Storage | null = defaultStorage()): Settin
     sfxVolume: typeof raw.sfxVolume === 'number' && Number.isFinite(raw.sfxVolume) ? Math.max(0, Math.min(1, raw.sfxVolume)) : d.sfxVolume,
     music: typeof raw.music === 'boolean' ? raw.music : d.music,
     safetyAck: typeof raw.safetyAck === 'boolean' ? raw.safetyAck : d.safetyAck,
+    webcamBg: oneOf(raw.webcamBg, WEBCAM_BGS, d.webcamBg),
   };
 }
 

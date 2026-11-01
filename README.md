@@ -37,7 +37,7 @@ Mở game là vào menu (chuột hoặc ↑/↓ + Enter, Esc quay lại):
 
 - **Quick Fight**: chọn AI Easy / Normal / Hard. Hết trận có màn kết quả: đòn trúng, combo dài nhất, đòn đỡ được, số cú đấm/đá, sát thương, kcal ước tính cho vui. Enter đấu lại, M về menu.
 - **Training**: **Drill** gọi tên ngẫu nhiên 12 động tác (đấm/đá trái phải, block), chấm đúng/sai và thời gian phản ứng; **Bao cát** không đánh trả, tự hồi máu, không giới hạn giờ, hiện số combo.
-- **Cài đặt** (lưu lại giữa các lần mở): bàn phím hay cơ thể, bố cục webcam, camera, model Full/Lite, âm lượng, nhạc nền.
+- **Cài đặt** (lưu lại giữa các lần mở): bàn phím hay cơ thể, bố cục webcam, **nền webcam** (che phòng, chỉ thấy người), camera, model Full/Lite, âm lượng, nhạc nền.
 - **Hướng dẫn & an toàn**: bảng phím, động tác, cách đặt camera. Lần đầu vào trận game hiện màn an toàn một lần.
 
 ## Chơi thử bằng bàn phím
@@ -75,6 +75,7 @@ AI: Easy nghỉ nhiều, hiếm khi phòng thủ. Normal và Hard đứng ngay n
 |---|---|
 | C | Đổi bàn phím ↔ cơ thể |
 | V | Đổi hiển thị: chia đôi (webcam \| trận) → webcam góc → chỉ game |
+| B | Đổi nền webcam: camera thật → làm mờ phòng → phố neon → studio tối (chỉ thấy người bạn; video quay cũng vậy) |
 | P hoặc nút ⏺ | Bắt đầu/dừng quay video `.webm` (gồm webcam, trận đấu, âm thanh) |
 | F3 | Hiện FPS game, FPS tracking, độ trễ |
 

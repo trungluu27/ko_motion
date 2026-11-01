@@ -3,11 +3,24 @@ import type { Region } from '../layout';
 import type { MotionSession } from '../motion/motionSession';
 import type { ActionEvent } from '../../shared/types';
 import { drawWebcamPanel } from '../../view/webcamPanel';
+import { type WebcamBg, loadSettings } from '../settings';
+
+/** The neon backdrop, loaded once for every scene's webcam panel. */
+let neonImage: HTMLImageElement | null = null;
+function neon(): HTMLImageElement {
+  if (!neonImage) {
+    neonImage = new Image();
+    neonImage.src = `${import.meta.env.BASE_URL}stages/neon_street/far.jpg`;
+  }
+  return neonImage;
+}
 
 /** Draws the Phase 1 webcam panel into a Phaser CanvasTexture, so the webcam is part of the game canvas (and recordings). */
 export class WebcamLayer {
   private readonly tex: Phaser.Textures.CanvasTexture;
   private readonly img: Phaser.GameObjects.Image;
+  /** what replaces the room behind the player (settings, B in a fight) */
+  background: WebcamBg = loadSettings().webcamBg;
 
   constructor(scene: Phaser.Scene, key = 'webcam') {
     const existing = scene.textures.exists(key) ? (scene.textures.get(key) as Phaser.Textures.CanvasTexture) : null;
@@ -28,7 +41,10 @@ export class WebcamLayer {
       session.lastFrame,
       session.lastOut,
       label,
-      { prompt },
+      {
+        prompt,
+        background: this.background === 'off' ? undefined : { kind: this.background, person: session.matte.canvas, image: this.background === 'neon' ? neon() : null },
+      },
     );
     this.tex.refresh();
     this.img.setPosition(region.x, region.y).setVisible(true);
