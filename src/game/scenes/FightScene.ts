@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { AiInput } from '../ai/aiInput';
 import type { Difficulty } from '../ai/difficulty';
+import type { Launch, LaunchData } from '../launch';
 import { DummyInput } from '../input/dummyInput';
 import { IntentBuilder } from '../input/intent';
 import { keyboardControl } from '../input/keyboardMap';
@@ -14,6 +15,7 @@ import { Hud } from '../render/hud';
 import { hudModel } from '../render/hudModel';
 import { poseFor } from '../render/pose';
 import { Sfx } from '../render/sfx';
+import { loadSettings, saveSettings } from '../settings';
 import { OPPONENT_COLOR, PLAYER_COLOR, drawFighter } from '../render/stickFighter';
 import { WebcamLayer } from '../render/webcamLayer';
 import { FighterSprite, type SpriteMeta } from '../render/fighterSprite';
@@ -25,7 +27,7 @@ import { TrackingPause, effectiveTracking } from '../trackingPause';
 import { VideoRecorder, downloadBlob, recordingFilename } from '../../recording/videoRecorder';
 import { ActionLabelTimer } from '../../view/webcamPanel';
 
-const GAME_KEYS = new Set(['KeyP', 'KeyA', 'KeyD', 'KeyS', 'KeyW', 'KeyJ', 'KeyK', 'KeyU', 'KeyI', 'Space', 'KeyQ', 'KeyE', 'F3']);
+const GAME_KEYS = new Set(['Escape', 'KeyP', 'KeyA', 'KeyD', 'KeyS', 'KeyW', 'KeyJ', 'KeyK', 'KeyU', 'KeyI', 'Space', 'KeyQ', 'KeyE', 'F3']);
 type Opponent = Difficulty | 'dummy';
 const FIGHTER_KEYS = ['fighter_a', 'fighter_b'] as const;
 const OPPONENT_KEYS: Record<string, Opponent> = { Digit1: 'easy', Digit2: 'normal', Digit3: 'hard', Digit0: 'dummy' };
@@ -33,7 +35,7 @@ const OPPONENT_LABEL: Record<Opponent, string> = { easy: 'AI Easy', normal: 'AI 
 const VIEW_LABEL: Record<ViewMode, string> = { split: 'chia đôi', pip: 'webcam góc', game: 'chỉ game' };
 
 export type Control = 'keyboard' | 'body';
-export type FightData = { control?: Control; view?: ViewMode; notice?: string | null };
+export type FightData = Partial<LaunchData>;
 
 /** The fight: keyboard and/or body control against the AI, fixed 60 Hz sim, split-screen webcam, tracking pause. */
 export class FightScene extends Phaser.Scene {
@@ -61,7 +63,7 @@ export class FightScene extends Phaser.Scene {
   private effects!: Effects;
   private hud!: Hud;
   private webcam!: WebcamLayer;
-  private sfx = new Sfx();
+  private sfx = Sfx.get();
   private info!: Phaser.GameObjects.Text;
   private overlay!: Phaser.GameObjects.Text;
   private perf!: Phaser.GameObjects.Text;
@@ -106,9 +108,17 @@ export class FightScene extends Phaser.Scene {
   }
 
   init(data: FightData): void {
-    this.control = data.control ?? this.control;
-    this.viewMode = data.view ?? this.viewMode;
+    const settings = loadSettings();
+    const launch: Launch = data.launch ?? { mode: 'fight', opponent: this.opponent === 'dummy' ? 'normal' : this.opponent };
+    this.opponent = launch.mode === 'fight' ? launch.opponent : 'dummy';
+    this.control = data.control ?? settings.control;
+    this.viewMode = settings.view;
     this.notice = data.notice ?? null;
+  }
+
+  /** The current activity, for calibration round-trips. */
+  private launch(): Launch {
+    return this.opponent === 'dummy' ? { mode: 'dummy' } : { mode: 'fight', opponent: this.opponent };
   }
 
   create(): void {
@@ -154,6 +164,7 @@ export class FightScene extends Phaser.Scene {
       if (e.repeat) return;
       this.down.add(e.code);
       this.pressed.add(e.code);
+      if (e.code === 'Escape') this.toMenu();
       if (e.code === 'KeyR') this.restart();
       if (e.code === 'KeyC') this.toggleControl();
       if (e.code === 'KeyV') this.cycleView();
@@ -208,7 +219,7 @@ export class FightScene extends Phaser.Scene {
 
   private toggleControl(): void {
     if (this.control === 'keyboard') {
-      this.scene.start('calibration');
+      this.scene.start('calibration', { launch: this.launch(), rest: ['fight'] } satisfies LaunchData);
     } else {
       MotionSession.get().pause();
       this.toKeyboard();
@@ -223,9 +234,15 @@ export class FightScene extends Phaser.Scene {
     this.applyLayout();
   }
 
+  private toMenu(): void {
+    if (this.control === 'body') MotionSession.get().pause();
+    this.scene.start('menu');
+  }
+
   private cycleView(): void {
     if (this.control !== 'body') return;
     this.viewMode = VIEW_MODES[(VIEW_MODES.indexOf(this.viewMode) + 1) % VIEW_MODES.length];
+    saveSettings({ ...loadSettings(), view: this.viewMode });
     this.applyLayout();
     this.updateInfo();
   }
@@ -270,8 +287,8 @@ export class FightScene extends Phaser.Scene {
     const body = this.control === 'body';
     this.info.setText(
       (body
-        ? `Cơ thể · V hiển thị: ${VIEW_LABEL[this.viewMode]} · C về bàn phím`
-        : 'A/D đi · W nhảy · S cúi · J/K đấm · U/I đá · Space block · Q/E né · C chơi bằng cơ thể') +
+        ? `Esc menu · Cơ thể · V hiển thị: ${VIEW_LABEL[this.viewMode]} · C về bàn phím`
+        : 'Esc menu · A/D đi · W nhảy · S cúi · J/K đấm · U/I đá · Space block · Q/E né · C cơ thể') +
         ` · Đối thủ [1/2/3/0]: ${OPPONENT_LABEL[this.opponent]} · R đấu lại · F3 hiệu năng`,
     );
   }

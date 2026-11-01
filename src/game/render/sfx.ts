@@ -1,18 +1,40 @@
+import { loadSettings } from '../settings';
 import type { SimEvent } from '../sim/types';
 
 /** Tiny WebAudio synth for combat sounds; the AudioContext is created on the first user gesture. */
 export class Sfx {
+  private static instance: Sfx | null = null;
+
+  /** One shared synth, so every scene's sounds (and the music) reach the same recording stream. */
+  static get(): Sfx {
+    Sfx.instance ??= new Sfx();
+    return Sfx.instance;
+  }
+
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private recordDest: MediaStreamAudioDestinationNode | null = null;
+  private volume = loadSettings().sfxVolume;
 
   unlock(): void {
     if (!this.ctx) {
       this.ctx = new AudioContext();
       this.master = this.ctx.createGain();
+      this.master.gain.value = this.volume;
       this.master.connect(this.ctx.destination);
     }
     if (this.ctx.state === 'suspended') void this.ctx.resume();
+  }
+
+  /** Master volume 0..1 (settings). */
+  setVolume(v: number): void {
+    this.volume = v;
+    if (this.master) this.master.gain.value = v;
+  }
+
+  /** Menu cursor tick. */
+  ui(): void {
+    this.tone('triangle', 900, 700, 40, 0.12);
   }
 
   /** Audio of every sound effect, for recording alongside the canvas. */

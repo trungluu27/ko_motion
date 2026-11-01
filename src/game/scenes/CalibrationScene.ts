@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { Calibrator, type CalibrationProgress } from '../../motion/calibration';
 import { CameraError } from '../../motion/camera';
 import { DEFAULT_CONFIG } from '../../motion/config';
+import { type LaunchData, advance } from '../launch';
 import type { Region } from '../layout';
 import { MotionSession } from '../motion/motionSession';
 import { WebcamLayer } from '../render/webcamLayer';
@@ -25,9 +26,14 @@ export class CalibrationScene extends Phaser.Scene {
   private status!: Phaser.GameObjects.Text;
   private keysHint!: Phaser.GameObjects.Text;
   private error: string | null = null;
+  private next: LaunchData = { launch: { mode: 'fight', opponent: 'normal' }, rest: ['fight'] };
 
   constructor() {
     super('calibration');
+  }
+
+  init(data: Partial<LaunchData>): void {
+    if (data.launch && data.rest) this.next = { launch: data.launch, rest: data.rest };
   }
 
   create(): void {
@@ -65,18 +71,18 @@ export class CalibrationScene extends Phaser.Scene {
 
     this.session.start().catch((e: unknown) => {
       this.error = e instanceof CameraError ? e.message : `Không mở được camera hoặc model: ${String(e)}`;
-      this.time.delayedCall(4000, () => this.scene.start('fight', { control: 'keyboard', view: 'game', notice: this.error }));
+      this.time.delayedCall(4000, () => advance(this, this.next, { control: 'keyboard', notice: this.error }));
     });
 
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Enter' && this.session.calibration && !this.calibrator && this.session.running) {
-        this.scene.start('fight', { control: 'body', view: 'split' });
+        advance(this, this.next, { control: 'body' });
       } else if (e.code === 'KeyK' && this.session.running) {
         this.calibrator = new Calibrator(DEFAULT_CONFIG);
         this.progress = null;
       } else if (e.code === 'Escape') {
         this.session.pause();
-        this.scene.start('fight', { control: 'keyboard', view: 'game' });
+        this.scene.start('menu');
       }
     };
     window.addEventListener('keydown', onKey);
