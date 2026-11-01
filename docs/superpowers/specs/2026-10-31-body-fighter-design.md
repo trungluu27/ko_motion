@@ -240,6 +240,8 @@ Input từ cơ thể đến muộn khoảng 150 ms, nên đòn người chơi c�
 
 ## 9. Phase 5 – Hoàn thiện
 
+> Chi tiết và trạng thái: [`2026-11-01-phase5-polish-design.md`](2026-11-01-phase5-polish-design.md) (đã làm xong).
+
 - **Menu** (chuột/bàn phím): Quick Fight (chọn Easy/Normal/Hard), Training, Settings (camera, model, chế độ hiển thị, input bàn phím/cơ thể, âm lượng), Hướng dẫn và an toàn.
 - **Training Mode:** (a) *Drill*: hệ thống gọi tên động tác ngẫu nhiên, đo thời gian phản ứng và tỉ lệ nhận diện đúng, có tổng kết cuối bài. (b) *Dummy*: bao cát không đánh trả để thử combo.
 - **Result screen:** thắng/thua, số đòn trúng, combo dài nhất, số cú đấm/đá đã thực hiện (gợi hướng Fitness/Analytics).

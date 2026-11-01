@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { AiInput } from '../ai/aiInput';
 import type { Difficulty } from '../ai/difficulty';
+import type { Launch, LaunchData } from '../launch';
 import { DummyInput } from '../input/dummyInput';
 import { IntentBuilder } from '../input/intent';
 import { keyboardControl } from '../input/keyboardMap';
@@ -13,7 +14,12 @@ import { Effects } from '../render/effects';
 import { Hud } from '../render/hud';
 import { hudModel } from '../render/hudModel';
 import { poseFor } from '../render/pose';
+import { Music } from '../render/music';
 import { Sfx } from '../render/sfx';
+import { loadSettings, saveSettings } from '../settings';
+import { MatchStats } from '../stats';
+import { trainingTick } from '../training/dummy';
+import type { ResultData } from './ResultScene';
 import { OPPONENT_COLOR, PLAYER_COLOR, drawFighter } from '../render/stickFighter';
 import { WebcamLayer } from '../render/webcamLayer';
 import { FighterSprite, type SpriteMeta } from '../render/fighterSprite';
@@ -25,15 +31,17 @@ import { TrackingPause, effectiveTracking } from '../trackingPause';
 import { VideoRecorder, downloadBlob, recordingFilename } from '../../recording/videoRecorder';
 import { ActionLabelTimer } from '../../view/webcamPanel';
 
-const GAME_KEYS = new Set(['KeyP', 'KeyA', 'KeyD', 'KeyS', 'KeyW', 'KeyJ', 'KeyK', 'KeyU', 'KeyI', 'Space', 'KeyQ', 'KeyE', 'F3']);
+/** Ticks between the match result and the result screen: the KO and the victory pose play out first. */
+const RESULT_DELAY = 150;
+const GAME_KEYS = new Set(['Escape', 'KeyN', 'KeyP', 'KeyA', 'KeyD', 'KeyS', 'KeyW', 'KeyJ', 'KeyK', 'KeyU', 'KeyI', 'Space', 'KeyQ', 'KeyE', 'F3']);
 type Opponent = Difficulty | 'dummy';
 const FIGHTER_KEYS = ['fighter_a', 'fighter_b'] as const;
 const OPPONENT_KEYS: Record<string, Opponent> = { Digit1: 'easy', Digit2: 'normal', Digit3: 'hard', Digit0: 'dummy' };
-const OPPONENT_LABEL: Record<Opponent, string> = { easy: 'AI Easy', normal: 'AI Normal', hard: 'AI Hard', dummy: 'bao cát' };
+const OPPONENT_LABEL: Record<Opponent, string> = { easy: 'AI Easy', normal: 'AI Normal', hard: 'AI Hard', dummy: 'bao cát (luyện combo)' };
 const VIEW_LABEL: Record<ViewMode, string> = { split: 'chia đôi', pip: 'webcam góc', game: 'chỉ game' };
 
 export type Control = 'keyboard' | 'body';
-export type FightData = { control?: Control; view?: ViewMode; notice?: string | null };
+export type FightData = Partial<LaunchData>;
 
 /** The fight: keyboard and/or body control against the AI, fixed 60 Hz sim, split-screen webcam, tracking pause. */
 export class FightScene extends Phaser.Scene {
@@ -57,11 +65,17 @@ export class FightScene extends Phaser.Scene {
   private failedAssets = new Set<string>();
   private simTicks = 0;
   private sinceResult = 0;
+  private stats = new MatchStats();
+  /** bumped per create(): async callbacks from an earlier visit must not act on this one */
+  private visit = 0;
+  private sinceHit = 0;
+  private comboText!: Phaser.GameObjects.Text;
   private fighters!: Phaser.GameObjects.Graphics;
   private effects!: Effects;
   private hud!: Hud;
   private webcam!: WebcamLayer;
-  private sfx = new Sfx();
+  private sfx = Sfx.get();
+  private music = new Music(Sfx.get());
   private info!: Phaser.GameObjects.Text;
   private overlay!: Phaser.GameObjects.Text;
   private perf!: Phaser.GameObjects.Text;
@@ -106,13 +120,22 @@ export class FightScene extends Phaser.Scene {
   }
 
   init(data: FightData): void {
-    this.control = data.control ?? this.control;
-    this.viewMode = data.view ?? this.viewMode;
+    const settings = loadSettings();
+    const launch: Launch = data.launch ?? { mode: 'fight', opponent: this.opponent === 'dummy' ? 'normal' : this.opponent };
+    this.opponent = launch.mode === 'fight' ? launch.opponent : 'dummy';
+    this.control = data.control ?? settings.control;
+    this.viewMode = settings.view;
     this.notice = data.notice ?? null;
+  }
+
+  /** The current activity, for calibration round-trips. */
+  private launch(): Launch {
+    return this.opponent === 'dummy' ? { mode: 'dummy' } : { mode: 'fight', opponent: this.opponent };
   }
 
   create(): void {
     const font = 'system-ui, sans-serif';
+    this.visit++;
     this.down = new Set();
     this.pressed = new Set();
     this.step = new FixedStep();
@@ -129,6 +152,10 @@ export class FightScene extends Phaser.Scene {
       .text(0, 330, '', { fontFamily: font, fontSize: '44px', fontStyle: '900', color: '#f8fafc', stroke: '#020617', strokeThickness: 8, align: 'center' })
       .setOrigin(0.5)
       .setDepth(60);
+    this.comboText = this.add
+      .text(0, 150, '', { fontFamily: font, fontSize: '40px', fontStyle: '900', color: '#facc15', stroke: '#020617', strokeThickness: 6 })
+      .setOrigin(0.5)
+      .setDepth(60);
     this.perf = this.add.text(12, CANVAS_H - 52, '', { fontFamily: 'ui-monospace, monospace', fontSize: '14px', color: '#a3e635' }).setDepth(61);
     this.recButton = this.add
       .text(0, 96, '', { fontFamily: font, fontSize: '16px', fontStyle: '700', color: '#f8fafc', backgroundColor: '#1e293b', padding: { x: 10, y: 4 } })
@@ -139,7 +166,10 @@ export class FightScene extends Phaser.Scene {
     this.recButton.setVisible(VideoRecorder.isAvailable());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       if (this.recorder.recording) void this.toggleRecording();
+      this.music.stop();
     });
+    this.music = new Music(this.sfx);
+    this.music.setEnabled(loadSettings().music);
     this.noticeUntil = this.notice ? performance.now() + 6000 : 0;
     this.applyLayout();
     this.restart();
@@ -150,10 +180,14 @@ export class FightScene extends Phaser.Scene {
   private attachKeyboard(): void {
     const onDown = (e: KeyboardEvent) => {
       this.sfx.unlock();
+      // audio only exists after a user gesture, so the music may start on the first key
+      if (loadSettings().music && !this.music.playing) this.music.start();
       if (GAME_KEYS.has(e.code)) e.preventDefault();
       if (e.repeat) return;
       this.down.add(e.code);
       this.pressed.add(e.code);
+      if (e.code === 'Escape') this.toMenu();
+      if (e.code === 'KeyN') this.toggleMusic();
       if (e.code === 'KeyR') this.restart();
       if (e.code === 'KeyC') this.toggleControl();
       if (e.code === 'KeyV') this.cycleView();
@@ -186,7 +220,9 @@ export class FightScene extends Phaser.Scene {
       for (const e of out.events) this.labels.push(e, now);
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribe);
+    const visit = this.visit;
     session.start().catch((e: unknown) => {
+      if (visit !== this.visit || !this.sys.isActive()) return;
       this.toKeyboard();
       this.showNotice(`📷 ${e instanceof Error ? e.message : String(e)} Đã chuyển về bàn phím.`);
     });
@@ -208,7 +244,7 @@ export class FightScene extends Phaser.Scene {
 
   private toggleControl(): void {
     if (this.control === 'keyboard') {
-      this.scene.start('calibration');
+      this.scene.start('calibration', { launch: this.launch(), rest: ['fight'] } satisfies LaunchData);
     } else {
       MotionSession.get().pause();
       this.toKeyboard();
@@ -223,9 +259,22 @@ export class FightScene extends Phaser.Scene {
     this.applyLayout();
   }
 
+  private toggleMusic(): void {
+    const music = !loadSettings().music;
+    saveSettings({ ...loadSettings(), music });
+    this.music.setEnabled(music);
+    this.showNotice(music ? '♪ Nhạc nền: bật (N)' : 'Nhạc nền: tắt (N)');
+  }
+
+  private toMenu(): void {
+    if (this.control === 'body') MotionSession.get().pause();
+    this.scene.start('menu');
+  }
+
   private cycleView(): void {
     if (this.control !== 'body') return;
     this.viewMode = VIEW_MODES[(VIEW_MODES.indexOf(this.viewMode) + 1) % VIEW_MODES.length];
+    saveSettings({ ...loadSettings(), view: this.viewMode });
     this.applyLayout();
     this.updateInfo();
   }
@@ -250,6 +299,8 @@ export class FightScene extends Phaser.Scene {
   private restart(): void {
     this.match = createMatch({ extraStartup: [0, telegraphFor(this.control)] });
     this.sinceResult = 0;
+    this.stats = new MatchStats();
+    this.sinceHit = 0;
     this.intent = new IntentBuilder();
     this.motion.clear();
     this.pause.reset();
@@ -260,7 +311,7 @@ export class FightScene extends Phaser.Scene {
   /** A fresh opponent per match, so no AI statistics or plans carry over. */
   private makeOpponent(): { next: (m: Match) => TickInput } {
     if (this.opponent === 'dummy') {
-      const dummy = new DummyInput('jab');
+      const dummy = new DummyInput('idle');
       return { next: (m) => dummy.next(m.frame) };
     }
     return new AiInput(this.opponent, 1, Date.now() >>> 0);
@@ -270,8 +321,8 @@ export class FightScene extends Phaser.Scene {
     const body = this.control === 'body';
     this.info.setText(
       (body
-        ? `Cơ thể · V hiển thị: ${VIEW_LABEL[this.viewMode]} · C về bàn phím`
-        : 'A/D đi · W nhảy · S cúi · J/K đấm · U/I đá · Space block · Q/E né · C chơi bằng cơ thể') +
+        ? `Esc menu · Cơ thể · V hiển thị: ${VIEW_LABEL[this.viewMode]} · C về bàn phím · N nhạc`
+        : 'Esc menu · A/D đi · W nhảy · S cúi · J/K đấm · U/I đá · Space block · Q/E né · C cơ thể · N nhạc') +
         ` · Đối thủ [1/2/3/0]: ${OPPONENT_LABEL[this.opponent]} · R đấu lại · F3 hiệu năng`,
     );
   }
@@ -312,14 +363,28 @@ export class FightScene extends Phaser.Scene {
         const keys = this.intent.next();
         const player = body ? mergeInputs(this.motion.next(now), keys) : keys;
         stepMatch(this.match, [player, this.opponentInput.next(this.match)]);
+        this.stats.observe(this.match.events, this.match.frame);
+        if (this.opponent === 'dummy') {
+          const hit = this.match.events.some((e) => (e.type === 'hit' || e.type === 'guard_break') && e.fighter === 0);
+          this.sinceHit = hit ? 0 : this.sinceHit + 1;
+          trainingTick(this.match, this.sinceHit);
+        }
         this.simTicks++;
         if (this.match.result) this.sinceResult++;
         this.sprites?.forEach((sp, j) => sp.tick(this.match.fighters[j], this.match.events));
         for (const e of this.match.events) {
+          // the sandbag is never knocked out (trainingTick already cleared the result)
+          if (this.opponent === 'dummy' && e.type === 'ko') continue;
           this.effects.handle(e, this.match);
           this.sfx.play(e);
         }
       }
+    }
+
+    if (this.match.result && this.opponent !== 'dummy' && this.sinceResult >= RESULT_DELAY) {
+      const data: ResultData = { stats: this.stats.snapshot(), result: this.match.result, launch: this.launch(), control: this.control };
+      this.scene.start('result', data);
+      return;
     }
 
     this.fighters.clear();
@@ -336,6 +401,9 @@ export class FightScene extends Phaser.Scene {
     this.hud.draw(hudModel(this.match), this.layout.arena);
     if (session) this.webcam.draw(this.layout.webcam, session, this.labels.current(now));
     else this.webcam.draw(null, MotionSession.get(), null);
+
+    const combo = this.stats.comboAt(this.match.frame);
+    this.comboText.setX(this.layout.arena.x + this.layout.arena.w / 2).setText(this.opponent === 'dummy' && combo >= 2 ? `COMBO ×${combo}` : '');
 
     const noticeOn = this.notice !== null && now < this.noticeUntil;
     this.overlay.setText(
