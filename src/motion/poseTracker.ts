@@ -1,5 +1,9 @@
 import type { PoseLandmarker } from '@mediapipe/tasks-vision';
 import type { Landmark, PoseFrame } from '../shared/types';
+import { type Alpha, maskToAlpha } from '../view/personMatte';
+
+/** The person mask is sampled at 1/MASK_STEP of the video size (about 320×180 for 720p). */
+const MASK_STEP = 4;
 
 type RawLandmark = { x: number; y: number; z: number; visibility?: number };
 
@@ -26,6 +30,7 @@ export class PoseTracker {
   private lastTs = 0;
   private busy = false;
   private video: HTMLVideoElement | null = null;
+  private masks = false;
 
   private constructor(
     private readonly landmarker: PoseLandmarker,
@@ -51,7 +56,14 @@ export class PoseTracker {
     }
   }
 
-  start(video: HTMLVideoElement, onFrame: (f: PoseFrame | null, inferMs: number) => void): void {
+  /** Turns the person segmentation mask on or off (only computed while a webcam background is chosen). */
+  async setMasks(on: boolean): Promise<void> {
+    if (on === this.masks) return;
+    await this.landmarker.setOptions({ outputSegmentationMasks: on });
+    this.masks = on;
+  }
+
+  start(video: HTMLVideoElement, onFrame: (f: PoseFrame | null, inferMs: number, mask: Alpha | null) => void): void {
     this.stop();
     this.video = video;
     const tick = (now: number, meta: VideoFrameCallbackMetadata) => {
@@ -65,7 +77,11 @@ export class PoseTracker {
         const start = performance.now();
         const result = this.landmarker.detectForVideo(video, ts);
         const aspect = video.videoHeight ? video.videoWidth / video.videoHeight : 1;
-        onFrame(toPoseFrame(result, this.frameId++, t, aspect), performance.now() - start);
+        // masks are only valid inside this call: sample, then release them
+        const m = result.segmentationMasks?.[0];
+        const mask = m ? maskToAlpha(m.getAsFloat32Array(), m.width, m.height, MASK_STEP) : null;
+        result.segmentationMasks?.forEach((x) => x.close());
+        onFrame(toPoseFrame(result, this.frameId++, t, aspect), performance.now() - start, mask);
       } finally {
         this.busy = false;
       }
