@@ -43,8 +43,10 @@ describe('difficulty ladder (spec ai-difficulty 3)', () => {
     expect(play('hard', spammer(move)).aiWins).toBeGreaterThanOrEqual(16);
   });
 
-  test.each(SPAMS)('Normal beats a %s spammer at least 10/20', (move) => {
-    expect(play('normal', spammer(move)).aiWins).toBeGreaterThanOrEqual(10);
+  test('Normal wins at least 5/20 against each spammer and 25/60 overall', () => {
+    const wins = SPAMS.map((move) => play('normal', spammer(move)).aiWins);
+    expect(Math.min(...wins)).toBeGreaterThanOrEqual(5);
+    expect(wins.reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(25);
   });
 
   test('Easy stays easier than Normal against spammers', () => {

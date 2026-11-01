@@ -25,7 +25,7 @@ Các lệnh khác:
 
 ## Chơi thử bằng bàn phím
 
-Mở `http://localhost:5173/`. Bạn là võ sĩ màu cyan, đối thủ màu hồng là AI (mặc định Normal). Đòn của đối thủ luôn có báo trước: tay hoặc chân nhấp nháy vàng khoảng 0.4 giây.
+Mở `http://localhost:5173/`. Bạn là võ sĩ màu cyan, đối thủ màu hồng là AI (mặc định Normal). Đòn của đối thủ có báo trước bằng nhấp nháy vàng: khoảng 0.2 giây khi chơi bằng bàn phím, 0.4 giây khi chơi bằng cơ thể. Riêng đòn phạt lúc bạn đang hồi sau một đòn hụt hay bị đỡ thì không có báo trước.
 
 | Phím | Hành động |
 |---|---|
@@ -43,7 +43,7 @@ Mở `http://localhost:5173/`. Bạn là võ sĩ màu cyan, đối thủ màu h�
 
 Combo: J→K (Double Jab), J→K→I (Triple Attack), K→U→I (Power Combo), Block→Né→K (Counter).
 
-AI: Easy nghỉ nhiều, hiếm khi phòng thủ. Normal biết combo 2 đòn, thủ thế khi bạn áp sát và đôi khi phạt đòn hụt. Hard phản xạ nhanh (250 ms), combo 3 đòn, và hay đánh trả ngay sau khi bạn ra đòn hụt. Vì mọi đòn của AI đều có báo trước 0,4 giây, bạn luôn có cơ hội đỡ hoặc né. Normal và Hard còn **thích nghi theo thói quen của bạn** trong 20 giây gần nhất: hay đấm thì AI thủ nhiều hơn, hay đá thì nó né và giữ khoảng cách, hay block thì nó đánh mạnh để làm cạn stamina của bạn.
+AI: Easy nghỉ nhiều, hiếm khi phòng thủ. Normal và Hard đứng ngay ngoài tầm đòn của bạn, giơ thủ khi bạn bước vào tầm, đỡ xong thì phạt ngay, dùng đá ở tầm trung và đấm hoặc combo ở tầm gần. Hard phản xạ nhanh (220 ms), combo 3 đòn và gần như luôn phạt đòn hụt; spam một nút sẽ thua. Bạn vẫn luôn kịp đỡ hoặc né các đòn AI chủ động ra. Normal và Hard còn **thích nghi theo thói quen của bạn** trong 20 giây gần nhất: hay đấm thì AI thủ nhiều hơn, hay đá thì nó né và giữ khoảng cách, hay block thì nó đánh mạnh để làm cạn stamina của bạn.
 
 ## Chơi bằng cơ thể
 

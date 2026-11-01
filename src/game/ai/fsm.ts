@@ -1,5 +1,5 @@
 import type { Rng } from '../../shared/rng';
-import { ARENA_W, EDGE, MAX_SPECIAL } from '../sim/constants';
+import { ARENA_W, EDGE, MAX_SPECIAL, WALK_SPEED } from '../sim/constants';
 import { MOVES } from '../sim/moves';
 import { type Fighter, type MoveId, NO_INPUT, type TickInput } from '../sim/types';
 import type { Multipliers } from './adaptive';
@@ -12,6 +12,8 @@ export type BrainContext = {
   self: Fighter;
   /** the opponent as perceived (reactionMs late); null until enough history */
   seen: Seen | null;
+  /** how old `seen` is, in ticks: used to estimate what the opponent is doing now */
+  reactionFrames: number;
   frame: number;
   params: DifficultyParams;
   mult: Multipliers;
@@ -20,16 +22,32 @@ export type BrainContext = {
 const LOW_STAMINA = 20;
 const RECOVERED_STAMINA = 50;
 const WALL_MARGIN = 5;
-/** stop approaching here so a jab's knockback (30) still leaves the cross (range 120) in reach */
+/** close-range engage distance: a jab's knockback (30) still leaves the cross (range 120) in reach */
 const PUNCH_DISTANCE = 85;
-const POKE_DISTANCE = 150;
+/** mid-range engage distance: inside both kicks, outside both punches */
+const KICK_DISTANCE = 145;
+/** the AI waits this far outside the opponent's longest reach (spec ai-difficulty 2.3) */
+const HOVER_MARGIN = 15;
+/** how far from the hover distance still counts as "there" */
+const HOVER_SLACK = 20;
 const MAX_PROB = 0.95;
-const GUARD_DISTANCE = 170;
+const GUARD_MARGIN = 10;
 const GUARD_RELEASE_DISTANCE = 220;
 const GUARD_MIN_FRAMES = 18;
 const GUARD_EXTRA_FRAMES = 18;
-const COUNTER_ORDER: MoveId[] = ['punch_l', 'punch_r', 'kick_l', 'kick_r'];
+/** against a punch-heavy player, this share of guards ducks under the (high) punches instead of blocking */
+const LOW_GUARD_SHARE = 0.6;
+/** punches first: they recover before the opponent's hitstun ends; kicks only when nothing else lands in time */
+const PUNISH_ORDER: MoveId[] = ['punch_r', 'punch_l', 'kick_l', 'kick_r'];
+/** a punish may land a few frames after the opponent recovers: their fastest answer (the jab) still needs 4 frames */
+const PUNISH_SLACK = 3;
+const BASIC: MoveId[] = ['punch_l', 'punch_r', 'kick_l', 'kick_r'];
 
+const COMBO_2: MoveId[][] = [
+  ['punch_l', 'punch_r'],
+  ['punch_l', 'kick_r'],
+  ['punch_r', 'kick_l'],
+];
 const COMBO_3: MoveId[][] = [
   ['punch_l', 'punch_r', 'kick_r'],
   ['punch_r', 'kick_l', 'kick_r'],
@@ -38,15 +56,42 @@ const COMBO_3: MoveId[][] = [
 const isFree = (f: Fighter) =>
   f.action.kind === 'idle' || f.action.kind === 'walk' || f.action.kind === 'crouch' || f.action.kind === 'block';
 
-/** Finite-state fighter AI. Re-decides every DECISION_FRAMES ticks or when its current plan finishes. */
+/** The opponent's attack as it most likely is now: what we saw, aged by our reaction delay. */
+function attackNow(ctx: BrainContext): { move: MoveId; frame: number; activeFrom: number; activeTo: number; end: number } | null {
+  const a = ctx.seen?.action;
+  if (!a || a.kind !== 'attack') return null;
+  const d = MOVES[a.move];
+  const activeFrom = d.startup + (a.telegraph ?? 0);
+  const end = activeFrom + d.active + d.recovery;
+  const frame = a.frame + ctx.reactionFrames;
+  return frame < end ? { move: a.move, frame, activeFrom, activeTo: activeFrom + d.active, end } : null;
+}
+
+/** The opponent's longest reach with the stamina (and meter) they have. */
+function threatRange(seen: Seen): number {
+  const ranges = BASIC.filter((m) => seen.stamina >= MOVES[m].stamina).map((m) => MOVES[m].range);
+  if (seen.special >= MAX_SPECIAL) ranges.push(MOVES.special.range);
+  return Math.max(0, ...ranges);
+}
+
+const walkFrames = (d: number, move: MoveId) => Math.ceil(Math.max(0, d - MOVES[move].range) / WALK_SPEED);
+
+/** Finite-state fighter AI. Re-decides every DECISION_FRAMES ticks or when its current plan finishes; punishes on any tick. */
 export class AiBrain {
   private st: AiState = 'idle';
   private plan: MoveId[] = [];
   private holdUntil = 0;
   private nextDecision = 0;
   private specialStep = 0;
-  /** start frame of the last opponent attack we already rolled a reaction for */
-  private rolledFor: number | null = null;
+  /** the current guard is a crouch (evades high attacks) rather than a block */
+  private low = false;
+  /** distance the AI committed to close before attacking, or null when not committed */
+  private engage: number | null = null;
+  /** a counter that has to walk in gives up after this frame (the opening has closed) */
+  private counterUntil = 0;
+  /** start frame of the last opponent attack we already rolled a punish / a dodge for */
+  private rolledCounter: number | null = null;
+  private rolledDodge: number | null = null;
 
   constructor(private readonly rng: Rng) {}
 
@@ -71,7 +116,10 @@ export class AiBrain {
       this.st = 'idle';
       this.holdUntil = frame;
     }
-    if (frame >= this.nextDecision || this.planDone(ctx)) {
+    const busy = (this.st === 'attack' || this.st === 'counter') && this.plan.length > 0;
+    if (!busy && this.st !== 'special' && this.react(ctx, this.distance(ctx))) {
+      this.nextDecision = frame + DECISION_FRAMES;
+    } else if (frame >= this.nextDecision || this.planDone(ctx)) {
       this.nextDecision = frame + DECISION_FRAMES;
       this.decide(ctx);
     }
@@ -83,6 +131,7 @@ export class AiBrain {
     if (this.st === 'attack' || this.st === 'counter') return this.plan.length === 0 && isFree(ctx.self);
     if (this.st === 'dodge') return true;
     if (this.st === 'special') return this.specialStep >= 2;
+    if (this.st === 'approach' && this.engage !== null) return this.distance(ctx) <= this.engage;
     return false;
   }
 
@@ -95,27 +144,31 @@ export class AiBrain {
     return (away < 0 && ctx.self.x <= EDGE + WALL_MARGIN) || (away > 0 && ctx.self.x >= ARENA_W - EDGE - WALL_MARGIN);
   }
 
-  /** Rolls once per opponent attack: punish it in recovery, or dodge it during startup. */
+  /** The first move in PUNISH_ORDER that lands (walking in first if needed) before the opponent recovers. */
+  private punishMove(ctx: BrainContext, d: number, framesLeft: number): MoveId | null {
+    return PUNISH_ORDER.find((m) => ctx.self.stamina >= MOVES[m].stamina && walkFrames(d, m) + MOVES[m].startup < framesLeft + PUNISH_SLACK) ?? null;
+  }
+
+  /** Rolls once per opponent attack: punish it in recovery, or dodge it before it lands. */
   private react(ctx: BrainContext, d: number): boolean {
-    const { seen, self, params, mult, frame } = ctx;
-    const a = seen?.action;
-    if (!a || !isFree(self)) return false;
-    if (a.kind === 'blockstun' || (a.kind === 'attack' && a.frame >= MOVES[a.move].startup + MOVES[a.move].active)) {
-      const key = a.kind === 'attack' ? frame - a.frame : -1 - frame;
-      if (a.kind === 'attack' && this.rolledFor === key) return false;
-      this.rolledFor = a.kind === 'attack' ? key : this.rolledFor;
-      const move = COUNTER_ORDER.find((m) => MOVES[m].range >= d && self.stamina >= MOVES[m].stamina);
-      if (move && this.chance(params.counterChance * mult.counter)) {
-        this.st = 'counter';
-        this.plan = [move];
-        return true;
-      }
-      return false;
+    const { self, params, mult, frame } = ctx;
+    const now = attackNow(ctx);
+    if (!now || !isFree(self)) return false;
+    const key = frame - now.frame;
+    if (now.frame >= now.activeTo) {
+      if (this.rolledCounter === key) return false;
+      const move = this.punishMove(ctx, d, now.end - now.frame);
+      if (!move) return false;
+      this.rolledCounter = key;
+      if (!this.chance(params.counterChance * mult.counter)) return false;
+      this.st = 'counter';
+      this.plan = [move];
+      this.engage = null;
+      this.counterUntil = frame + walkFrames(d, move);
+      return true;
     }
-    if (a.kind === 'attack' && a.frame < MOVES[a.move].startup && d <= MOVES[a.move].range) {
-      const key = frame - a.frame;
-      if (this.rolledFor === key) return false;
-      this.rolledFor = key;
+    if (now.frame < now.activeTo && d <= MOVES[now.move].range && this.rolledDodge !== key) {
+      this.rolledDodge = key;
       if (this.chance(params.dodgeChance * mult.dodge)) {
         this.st = 'dodge';
         return true;
@@ -125,11 +178,10 @@ export class AiBrain {
   }
 
   private decide(ctx: BrainContext): void {
-    const { self, params, mult, frame } = ctx;
+    const { self, seen, params, mult, frame } = ctx;
     const d = this.distance(ctx);
     // keep finishing a combo; reactions may interrupt pauses and guards
     if ((this.st === 'attack' || this.st === 'counter') && this.plan.length > 0) return;
-    if (this.react(ctx, d)) return;
     if (this.st === 'block' && d > GUARD_RELEASE_DISTANCE) this.holdUntil = frame;
     if ((this.st === 'idle' || this.st === 'block') && frame < this.holdUntil) return;
     if (this.st === 'retreat' && self.stamina < RECOVERED_STAMINA && !this.pinnedWhenRetreating(ctx)) return;
@@ -141,25 +193,52 @@ export class AiBrain {
     }
     if (self.stamina < LOW_STAMINA && !this.pinnedWhenRetreating(ctx)) {
       this.st = 'retreat';
+      this.engage = null;
       return;
     }
-    if (d <= GUARD_DISTANCE && this.chance(params.blockChance * mult.block)) {
+    // inside the opponent's reach the guard comes up, even mid-approach
+    const threat = seen ? threatRange(seen) : 0;
+    const now = attackNow(ctx);
+    const recovering = now !== null && now.frame >= now.activeTo;
+    if (d <= threat + GUARD_MARGIN && !recovering && this.chance(params.blockChance * mult.block)) {
       this.st = 'block';
+      this.low = mult.block > 1 && this.chance(LOW_GUARD_SHARE);
       this.holdUntil = frame + GUARD_MIN_FRAMES + Math.floor(this.rng() * (GUARD_EXTRA_FRAMES + 1));
       return;
     }
-    const stop = mult.kickBias < 1 ? POKE_DISTANCE : PUNCH_DISTANCE;
-    if (d <= stop) {
-      if (this.chance(params.aggression * mult.aggression)) {
+    // committed: keep closing in, then strike
+    if (this.engage !== null) {
+      if (d <= this.engage) {
+        this.engage = null;
         this.st = 'attack';
         this.plan = this.chooseSequence(ctx, d);
       } else {
-        this.st = 'idle';
-        this.holdUntil = frame + msToFrames(params.idlePauseMs);
+        this.st = 'approach';
       }
       return;
     }
-    this.st = 'approach';
+    if (this.chance(params.aggression * mult.aggression)) {
+      // kick spacing half the time (more when the player keeps blocking, less when they kick)
+      this.engage = this.chance(0.5 * mult.kickBias) ? KICK_DISTANCE : PUNCH_DISTANCE;
+      if (d <= this.engage) {
+        this.engage = null;
+        this.st = 'attack';
+        this.plan = this.chooseSequence(ctx, d);
+      } else {
+        this.st = 'approach';
+      }
+      return;
+    }
+    // footsies: wait just outside the opponent's reach
+    const hover = threat + HOVER_MARGIN;
+    if (d < hover - HOVER_SLACK && !this.pinnedWhenRetreating(ctx)) {
+      this.st = 'retreat';
+    } else if (d > hover + HOVER_SLACK) {
+      this.st = 'approach';
+    } else {
+      this.st = 'idle';
+      this.holdUntil = frame + msToFrames(params.idlePauseMs);
+    }
   }
 
   private chooseSequence(ctx: BrainContext, d: number): MoveId[] {
@@ -167,11 +246,12 @@ export class AiBrain {
     const kicky = ctx.mult.kickBias > 1;
     const punchesReach = d <= MOVES.punch_r.range;
     if (comboLen >= 3 && punchesReach) return [...(kicky ? COMBO_3[1] : this.pick(COMBO_3))];
-    if (comboLen >= 2 && punchesReach && !kicky) return ['punch_l', 'punch_r'];
-    const inRange = (['punch_l', 'punch_r', 'kick_l', 'kick_r'] as MoveId[]).filter((m) => MOVES[m].range >= d);
+    if (comboLen >= 2 && punchesReach) return [...(kicky ? COMBO_2[1 + Math.floor(this.rng() * 2)] : this.pick(COMBO_2))];
+    const inRange = BASIC.filter((m) => MOVES[m].range >= d);
+    // past punch reach only kicks connect
     const kicks = inRange.filter((m) => m.startsWith('kick'));
     if (inRange.length === 0) return ['kick_r'];
-    return [kicky && kicks.length ? this.pick(kicks) : this.pick(inRange)];
+    return [(kicky || !punchesReach) && kicks.length ? this.pick(kicks) : this.pick(inRange)];
   }
 
   private act(ctx: BrainContext, toward: -1 | 0 | 1): TickInput {
@@ -193,7 +273,7 @@ export class AiBrain {
         return { ...NO_INPUT };
       }
       case 'block':
-        return { ...NO_INPUT, block: true };
+        return this.low ? { ...NO_INPUT, crouch: true } : { ...NO_INPUT, block: true };
       case 'dodge':
         this.st = 'idle';
         this.holdUntil = ctx.frame;
@@ -203,6 +283,8 @@ export class AiBrain {
         if (!isFree(self) || this.plan.length === 0) return { ...NO_INPUT };
         const move = this.plan[0];
         if (MOVES[move].range < this.distance(ctx)) {
+          // a punish walks in while the opening lasts
+          if (this.st === 'counter' && ctx.frame <= this.counterUntil) return { ...NO_INPUT, move: toward };
           this.plan = [];
           this.st = 'idle';
           this.holdUntil = ctx.frame;

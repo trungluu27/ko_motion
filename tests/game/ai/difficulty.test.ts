@@ -2,11 +2,11 @@ import { expect, test } from 'vitest';
 import { createRng } from '../../../src/shared/rng';
 import { DIFFICULTIES, msToFrames } from '../../../src/game/ai/difficulty';
 
-test('difficulty table matches spec 8', () => {
+test('difficulty table matches spec ai-difficulty 2.4', () => {
   expect(DIFFICULTIES).toEqual({
     easy: { reactionMs: 600, aggression: 0.25, blockChance: 0.15, dodgeChance: 0.05, counterChance: 0, comboLen: 1, idlePauseMs: 1200, adaptive: false },
-    normal: { reactionMs: 400, aggression: 0.45, blockChance: 0.4, dodgeChance: 0.15, counterChance: 0.3, comboLen: 2, idlePauseMs: 700, adaptive: true },
-    hard: { reactionMs: 250, aggression: 0.6, blockChance: 0.55, dodgeChance: 0.25, counterChance: 0.6, comboLen: 3, idlePauseMs: 400, adaptive: true },
+    normal: { reactionMs: 300, aggression: 0.5, blockChance: 0.55, dodgeChance: 0.15, counterChance: 0.65, comboLen: 2, idlePauseMs: 600, adaptive: true },
+    hard: { reactionMs: 220, aggression: 0.65, blockChance: 0.65, dodgeChance: 0.25, counterChance: 0.85, comboLen: 3, idlePauseMs: 300, adaptive: true },
   });
 });
 

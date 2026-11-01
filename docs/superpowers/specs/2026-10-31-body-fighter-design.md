@@ -224,7 +224,7 @@ Input từ cơ thể đến muộn khoảng 150 ms, nên đòn người chơi c�
 
 - `aiInput.ts` là một nguồn input: đọc snapshot của sim (khoảng cách, trạng thái hai bên, HP, stamina) và xuất thẳng `TickInput` (kiểu sim dùng), không qua `ControlFrame` vì AI không cần bước gộp event. Trạng thái đối thủ được nhìn **trễ `reactionMs`**. Nó dùng **đúng move list và luật** như người chơi, ngoại trừ telegraph bắt buộc ở 6.3.
 - `fsm.ts`, các state: `Idle, Approach, Attack, Block, Dodge, Counter, Retreat, Special`. Ra quyết định mỗi 100 ms, phản ứng với hành động của người chơi sau `reactionMs`.
-- `difficulty.ts`:
+- `difficulty.ts` (bảng dưới đây là bản gốc; bản đang dùng nằm ở `2026-11-01-ai-difficulty-design.md` mục 2.4, telegraph theo kiểu điều khiển ở mục 2.2):
 
 | Tham số | Easy | Normal | Hard |
 |---|---|---|---|
